@@ -31,7 +31,7 @@ export function ModelSelector({
   }, [open, selectedModels]);
 
   const handleSelectAll = () => {
-    setTempSelectedModels(["all"]);
+    setTempSelectedModels(models);
   };
 
   const handleDeselectAll = () => {
@@ -43,28 +43,16 @@ export function ModelSelector({
     setOpen(false);
   };
 
-  // Handle model selection logic - when selecting a model, remove "all" if it exists
+  // Handle model selection logic
   const handleModelSelection = (checked: boolean, model: string) => {
-    if (model === "all") {
-      setTempSelectedModels(checked ? ["all"] : []);
-      return;
-    }
-
     setTempSelectedModels((prev) => {
-      // If we're selecting a specific model, remove "all" from the selection
-      const newSelection = prev.filter((m) => m !== "all");
-
-      // Then add or remove the specific model
       if (checked) {
-        return [...newSelection, model];
+        return [...prev, model];
       } else {
-        return newSelection.filter((m) => m !== model);
+        return prev.filter((m) => m !== model);
       }
     });
   };
-
-  // Add the "all" option to the models list
-  const displayModels = ["all", ...models];
 
   return (
     <DropdownMenu open={open} onOpenChange={setOpen}>
@@ -74,13 +62,11 @@ export function ModelSelector({
           className="bg-gray-900/60 border-gray-700/50 text-gray-200 hover:bg-gray-800/60"
         >
           Models
-          {selectedModels.includes("all") ? (
-            <span className="ml-2 text-purple-400">(All)</span>
-          ) : selectedModels.length > 0 ? (
+          {selectedModels.length > 0 && (
             <span className="ml-2 text-purple-400">
               ({selectedModels.length})
             </span>
-          ) : null}
+          )}
         </Button>
       </DropdownMenuTrigger>
       <DropdownMenuContent className="w-64 p-4 bg-gray-900/95 border-gray-700/50 backdrop-blur-sm">
@@ -104,23 +90,20 @@ export function ModelSelector({
         </div>
         <ScrollArea className="h-[200px] mb-4">
           <div className="space-y-2">
-            {displayModels.map((model) => (
+            {models.map((model) => (
               <label
                 key={model}
                 className="flex items-center px-4 py-2 hover:bg-gray-800/60 cursor-pointer rounded group"
               >
                 <Checkbox
-                  checked={
-                    tempSelectedModels.includes(model) ||
-                    (model !== "all" && tempSelectedModels.includes("all"))
-                  }
+                  checked={tempSelectedModels.includes(model)}
                   onCheckedChange={(checked) =>
                     handleModelSelection(!!checked, model)
                   }
                   className="mr-2 border-gray-500 data-[state=checked]:bg-purple-500 data-[state=checked]:border-purple-500"
                 />
                 <span className="text-sm text-gray-200 group-hover:text-gray-100">
-                  {model === "all" ? "All Models" : model}
+                  {model}
                 </span>
               </label>
             ))}

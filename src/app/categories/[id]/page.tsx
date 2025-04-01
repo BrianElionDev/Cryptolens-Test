@@ -30,6 +30,8 @@ import {
 } from "recharts";
 import { Skeleton } from "@/components/ui/skeleton";
 import { notFound } from "next/navigation";
+import React from "react";
+import Image from "next/image";
 
 interface CategoryDetailData {
   id: string;
@@ -37,6 +39,7 @@ interface CategoryDetailData {
   market_cap: number;
   volume_24h: number;
   top_3_coins: string[];
+  image?: string;
 }
 
 interface CategoryAnalytics {
@@ -75,27 +78,27 @@ export default function CategoryDetailPage() {
   const [error, setError] = useState<string | null>(null);
   const [hasFetched, setHasFetched] = useState(false);
 
-  // Special case mappings for known categories
-  const specialCategoryIDs: Record<string, string> = {
-    "layer-1": "Layer 1",
-    "meme-token": "Meme",
-    "artificial-intelligence-ai": "AI",
-    "gaming-entertainment-social": "Gaming",
-    "decentralized-finance-defi": "DeFi",
-  };
-
   // Get a display name for the category (for UI purposes)
   const displayName = useMemo(() => {
-    if (categoryData?.name) return categoryData.name;
-    if (specialCategoryIDs[categoryId]) return specialCategoryIDs[categoryId];
-    return categoryId;
-  }, [categoryId, categoryData, specialCategoryIDs]);
+    if (!categoryId) return "";
 
-  console.log("Rendering CategoryDetailPage with id:", categoryId);
+    // Special case mappings for known categories
+    const specialCategoryIDs = {
+      "layer-1": "Layer 1",
+      "meme-token": "Meme Token",
+      "gaming-entertainment-social": "Gaming & Entertainment",
+      "artificial-intelligence-ai": "AI & Machine Learning",
+      "decentralized-finance-defi": "DeFi",
+    };
+
+    return (
+      specialCategoryIDs[categoryId as keyof typeof specialCategoryIDs] ||
+      categoryId
+    );
+  }, [categoryId]);
 
   // Process knowledge data for this category
   const processKnowledgeData = useCallback(() => {
-    console.log("Processing knowledge data for category:", categoryId);
     if (!knowledgeLoading && knowledge.length > 0) {
       const coinData = new Map<string, { rpoints: number; mentions: number }>();
       let totalRpoints = 0;
@@ -153,12 +156,6 @@ export default function CategoryDetailPage() {
         categoryVariants.add("finance");
         categoryVariants.add("decentralized finance");
       }
-
-      // Debug - log all variants we're looking for
-      console.log(
-        "Looking for category variants:",
-        Array.from(categoryVariants)
-      );
 
       knowledge.forEach((item: KnowledgeItem) => {
         const date = new Date(item.date);
@@ -229,11 +226,6 @@ export default function CategoryDetailPage() {
         });
       });
 
-      // Log how many matches we found
-      console.log(
-        `Found ${categoryCoins.size} matching coins for category ${categoryId}`
-      );
-
       // Sort coins by rpoints
       const coinBreakdown = Array.from(coinData.entries())
         .map(([name, data]) => ({
@@ -253,7 +245,6 @@ export default function CategoryDetailPage() {
         coinBreakdown,
       };
 
-      console.log("Category analytics processed:", analytics);
       setCategoryAnalytics(analytics);
       setIsLoading(false);
     } else if (!knowledgeLoading) {
@@ -269,33 +260,27 @@ export default function CategoryDetailPage() {
 
     async function fetchCategoryData() {
       try {
-        console.log("Fetching category data for:", categoryId);
         setIsLoading(true);
 
         // Mark as fetched to prevent loops
         setHasFetched(true);
 
         const response = await fetch(
-          `/api/categories/${encodeURIComponent(categoryId)}?t=${Date.now()}`,
+          `https://api.coingecko.com/api/v3/coins/categories/${encodeURIComponent(
+            categoryId
+          )}`,
           {
             cache: "no-store",
-            // Remove the timeout that was causing issues
           }
         );
 
-        console.log("Response status:", response.status);
-
         if (response.status === 404) {
-          console.error("Category not found, redirecting to 404");
           notFound();
           return;
         }
 
         if (!response.ok) {
           // Handle other error codes like rate limiting (429) or server errors (500)
-          const errorText = await response.text();
-          console.error(`API error (${response.status}):`, errorText);
-
           if (response.status === 429 || response.status === 503) {
             setError("CoinGecko API is rate limited. Please try again later.");
           } else {
@@ -305,17 +290,8 @@ export default function CategoryDetailPage() {
         }
 
         const data = await response.json();
-        console.log("Data received:", data);
-
-        if (data.data) {
-          console.log("Category data received:", data.data.name);
-          setCategoryData(data.data);
-        } else {
-          console.error("No data property in response", data);
-          setError(data.error || "Failed to load category data");
-        }
-      } catch (error) {
-        console.error("Failed to fetch category data:", error);
+        setCategoryData(data);
+      } catch {
         setError(
           "Failed to load category data. Please try refreshing the page."
         );
@@ -418,14 +394,9 @@ export default function CategoryDetailPage() {
               No Data Found
             </h2>
             <p className="text-gray-300">
-              We couldn't find market data for the category "{categoryId}". This
-              may happen if:
+              We&apos;re looking for &quot;{categoryId}&quot; but couldn&apos;t
+              find it.
             </p>
-            <ul className="mt-2 mb-4 list-disc list-inside text-gray-400 space-y-1">
-              <li>The category name is misspelled</li>
-              <li>The category doesn't exist on CoinGecko</li>
-              <li>CoinGecko API rate limits have been reached</li>
-            </ul>
             <div className="mt-4">
               <p className="text-sm text-gray-400 mb-4">
                 Try one of these popular categories instead:
@@ -507,46 +478,89 @@ export default function CategoryDetailPage() {
                         </tr>
                       </thead>
                       <tbody>
-                        {categoryAnalytics.coinBreakdown.map((coin) => (
-                          <tr
-                            key={coin.name}
-                            className="border-b border-gray-800 hover:bg-gray-800/50 cursor-pointer transition-colors"
-                            onClick={() => {
-                              const cleanName = coin.name.toLowerCase().trim();
-                              const safeId = cleanName
-                                .replace(/[^\w\s-]/g, "")
-                                .replace(/\s+/g, "-");
-                              router.push(`/coin/${safeId}`);
-                            }}
-                          >
-                            <td className="py-3 px-4 font-medium text-gray-100">
-                              {coin.name}
-                            </td>
-                            <td className="py-3 px-4 text-right text-blue-300">
-                              {coin.rpoints}
-                            </td>
-                            <td className="py-3 px-4 text-right text-purple-300">
-                              {coin.mentions}
-                            </td>
-                            <td className="py-3 px-4 text-right">
-                              <Link
-                                href={`/coin/${coin.name
+                        {categoryAnalytics.coinBreakdown.map((coin) => {
+                          // Calculate total mentions across all videos
+                          const totalMentions = knowledge.reduce(
+                            (total, item) => {
+                              if (item.llm_answer?.projects) {
+                                const projects = Array.isArray(
+                                  item.llm_answer.projects
+                                )
+                                  ? item.llm_answer.projects
+                                  : [item.llm_answer.projects];
+
+                                return (
+                                  total +
+                                  projects.reduce((sum, project) => {
+                                    const symbolMatch =
+                                      project.coin_or_project?.match(
+                                        /\(\$([^)]+)\)/
+                                      );
+                                    const symbol = symbolMatch
+                                      ? symbolMatch[1].toLowerCase()
+                                      : "";
+                                    const cleanName = project.coin_or_project
+                                      .replace(/\s*\(\$[^)]+\)/g, "")
+                                      .toLowerCase()
+                                      .trim();
+                                    const key = symbol || cleanName;
+
+                                    if (key === coin.name.toLowerCase()) {
+                                      return sum + (project.total_count || 1);
+                                    }
+                                    return sum;
+                                  }, 0)
+                                );
+                              }
+                              return total;
+                            },
+                            0
+                          );
+
+                          return (
+                            <tr
+                              key={coin.name}
+                              className="border-b border-gray-800 hover:bg-gray-800/50 cursor-pointer transition-colors"
+                              onClick={() => {
+                                const cleanName = coin.name
                                   .toLowerCase()
+                                  .trim();
+                                const safeId = cleanName
                                   .replace(/[^\w\s-]/g, "")
-                                  .replace(/\s+/g, "-")}`}
-                                onClick={(e) => e.stopPropagation()}
-                              >
-                                <Button
-                                  size="sm"
-                                  variant="ghost"
-                                  className="text-gray-300 hover:text-white hover:bg-gray-700/50"
+                                  .replace(/\s+/g, "-");
+                                router.push(`/coin/${safeId}`);
+                              }}
+                            >
+                              <td className="py-3 px-4 font-medium text-gray-100">
+                                {coin.name}
+                              </td>
+                              <td className="py-3 px-4 text-right text-blue-300">
+                                {coin.rpoints}
+                              </td>
+                              <td className="py-3 px-4 text-right text-purple-300">
+                                {totalMentions.toLocaleString()}
+                              </td>
+                              <td className="py-3 px-4 text-right">
+                                <Link
+                                  href={`/coin/${coin.name
+                                    .toLowerCase()
+                                    .replace(/[^\w\s-]/g, "")
+                                    .replace(/\s+/g, "-")}`}
+                                  onClick={(e) => e.stopPropagation()}
                                 >
-                                  View <ExternalLink className="h-3 w-3 ml-1" />
-                                </Button>
-                              </Link>
-                            </td>
-                          </tr>
-                        ))}
+                                  <Button
+                                    size="sm"
+                                    variant="ghost"
+                                    className="text-gray-300 hover:text-white hover:bg-gray-700/50"
+                                  >
+                                    View{" "}
+                                    <ExternalLink className="h-3 w-3 ml-1" />
+                                  </Button>
+                                </Link>
+                              </td>
+                            </tr>
+                          );
+                        })}
                       </tbody>
                     </table>
                   </div>
@@ -588,8 +602,8 @@ export default function CategoryDetailPage() {
           </h1>
           {categoryData && (
             <p className="text-gray-400 mt-1">
-              Market Cap: ${formatNumber(categoryData.market_cap)} • 24h Volume:
-              ${formatNumber(categoryData.volume_24h)}
+              Market Cap: ${formatNumber(categoryData?.market_cap)} • 24h
+              Volume: ${formatNumber(categoryData?.volume_24h)}
             </p>
           )}
         </div>
@@ -761,7 +775,7 @@ export default function CategoryDetailPage() {
                             rPoints
                           </th>
                           <th className="text-right py-3 px-4 text-gray-300">
-                            Mentions
+                            Total Mentions
                           </th>
                           <th className="text-right py-3 px-4 text-gray-300">
                             Actions
@@ -769,48 +783,89 @@ export default function CategoryDetailPage() {
                         </tr>
                       </thead>
                       <tbody>
-                        {categoryAnalytics?.coinBreakdown.map((coin) => (
-                          <tr
-                            key={coin.name}
-                            className="border-b border-gray-800 hover:bg-gray-800/50 cursor-pointer transition-colors"
-                            onClick={() => {
-                              // Format coinId similar to CombinedMarketTable
-                              const cleanName = coin.name.toLowerCase().trim();
-                              // Remove any special characters that might cause routing issues
-                              const safeId = cleanName
-                                .replace(/[^\w\s-]/g, "")
-                                .replace(/\s+/g, "-");
-                              router.push(`/coin/${safeId}`);
-                            }}
-                          >
-                            <td className="py-3 px-4 font-medium text-gray-100">
-                              {coin.name}
-                            </td>
-                            <td className="py-3 px-4 text-right text-blue-300">
-                              {coin.rpoints}
-                            </td>
-                            <td className="py-3 px-4 text-right text-purple-300">
-                              {coin.mentions}
-                            </td>
-                            <td className="py-3 px-4 text-right">
-                              <Link
-                                href={`/coin/${coin.name
+                        {categoryAnalytics.coinBreakdown.map((coin) => {
+                          // Calculate total mentions across all videos
+                          const totalMentions = knowledge.reduce(
+                            (total, item) => {
+                              if (item.llm_answer?.projects) {
+                                const projects = Array.isArray(
+                                  item.llm_answer.projects
+                                )
+                                  ? item.llm_answer.projects
+                                  : [item.llm_answer.projects];
+
+                                return (
+                                  total +
+                                  projects.reduce((sum, project) => {
+                                    const symbolMatch =
+                                      project.coin_or_project?.match(
+                                        /\(\$([^)]+)\)/
+                                      );
+                                    const symbol = symbolMatch
+                                      ? symbolMatch[1].toLowerCase()
+                                      : "";
+                                    const cleanName = project.coin_or_project
+                                      .replace(/\s*\(\$[^)]+\)/g, "")
+                                      .toLowerCase()
+                                      .trim();
+                                    const key = symbol || cleanName;
+
+                                    if (key === coin.name.toLowerCase()) {
+                                      return sum + (project.total_count || 1);
+                                    }
+                                    return sum;
+                                  }, 0)
+                                );
+                              }
+                              return total;
+                            },
+                            0
+                          );
+
+                          return (
+                            <tr
+                              key={coin.name}
+                              className="border-b border-gray-800 hover:bg-gray-800/50 cursor-pointer transition-colors"
+                              onClick={() => {
+                                const cleanName = coin.name
                                   .toLowerCase()
+                                  .trim();
+                                const safeId = cleanName
                                   .replace(/[^\w\s-]/g, "")
-                                  .replace(/\s+/g, "-")}`}
-                                onClick={(e) => e.stopPropagation()}
-                              >
-                                <Button
-                                  size="sm"
-                                  variant="ghost"
-                                  className="text-gray-300 hover:text-white hover:bg-gray-700/50"
+                                  .replace(/\s+/g, "-");
+                                router.push(`/coin/${safeId}`);
+                              }}
+                            >
+                              <td className="py-3 px-4 font-medium text-gray-100">
+                                {coin.name}
+                              </td>
+                              <td className="py-3 px-4 text-right text-blue-300">
+                                {coin.rpoints}
+                              </td>
+                              <td className="py-3 px-4 text-right text-purple-300">
+                                {totalMentions.toLocaleString()}
+                              </td>
+                              <td className="py-3 px-4 text-right">
+                                <Link
+                                  href={`/coin/${coin.name
+                                    .toLowerCase()
+                                    .replace(/[^\w\s-]/g, "")
+                                    .replace(/\s+/g, "-")}`}
+                                  onClick={(e) => e.stopPropagation()}
                                 >
-                                  View <ExternalLink className="h-3 w-3 ml-1" />
-                                </Button>
-                              </Link>
-                            </td>
-                          </tr>
-                        ))}
+                                  <Button
+                                    size="sm"
+                                    variant="ghost"
+                                    className="text-gray-300 hover:text-white hover:bg-gray-700/50"
+                                  >
+                                    View{" "}
+                                    <ExternalLink className="h-3 w-3 ml-1" />
+                                  </Button>
+                                </Link>
+                              </td>
+                            </tr>
+                          );
+                        })}
                       </tbody>
                     </table>
                   </div>
@@ -835,10 +890,12 @@ export default function CategoryDetailPage() {
                       key={index}
                       className="flex items-center bg-gray-900/60 p-3 rounded-lg border border-gray-700/50"
                     >
-                      <img
+                      <Image
                         src={coinImageUrl}
                         alt={`Top ${index + 1} coin`}
-                        className="h-12 w-12 rounded-full"
+                        width={48}
+                        height={48}
+                        className="rounded-full"
                       />
                     </div>
                   ))}
@@ -848,13 +905,13 @@ export default function CategoryDetailPage() {
                   <div className="bg-gray-900/60 rounded-lg p-4 border border-gray-700/50">
                     <h4 className="text-sm text-gray-400 mb-1">Market Cap</h4>
                     <p className="text-xl font-medium text-green-300">
-                      ${formatNumber(categoryData.market_cap)}
+                      ${formatNumber(categoryData?.market_cap)}
                     </p>
                   </div>
                   <div className="bg-gray-900/60 rounded-lg p-4 border border-gray-700/50">
                     <h4 className="text-sm text-gray-400 mb-1">24h Volume</h4>
                     <p className="text-xl font-medium text-cyan-300">
-                      ${formatNumber(categoryData.volume_24h)}
+                      ${formatNumber(categoryData?.volume_24h)}
                     </p>
                   </div>
                 </div>
@@ -954,7 +1011,8 @@ function MetricCard({
   );
 }
 
-function formatNumber(num: number): string {
+function formatNumber(num: number | undefined | null): string {
+  if (num === undefined || num === null) return "0";
   if (num >= 1_000_000_000) {
     return (num / 1_000_000_000).toFixed(2) + "B";
   }

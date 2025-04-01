@@ -3,14 +3,7 @@ import axios, { AxiosError } from "axios";
 import { API_ENDPOINTS } from "@/config/api";
 import type { KnowledgeItem } from "@/types/knowledge";
 import { toast } from "react-hot-toast";
-import { useRef, useEffect, useMemo } from "react";
-
-export interface CoinResponse {
-  data: CoinData[];
-  timestamp: number;
-  loadedCount?: number;
-  hasCMCData: boolean;
-}
+import { useRef, useEffect } from "react";
 
 // Keep track of market data between renders
 const marketDataRef: { current: Record<string, CoinData> } = { current: {} };
@@ -64,6 +57,7 @@ export function useCoinData(
   refreshKey = 0,
   mode: "quick" | "full" = "full"
 ) {
+  // Extract dependencies for useEffect
   const symbolsKey = symbols.sort().join(",");
 
   useEffect(() => {
@@ -141,42 +135,17 @@ export function useCoinData(
   });
 
   // Merge data from both queries
-  const mergedData = useMemo(() => {
-    const geckoData = geckoQuery.data?.data || {};
-    const cmcData = cmcQuery.data?.data || {};
-
-    // Clear and update refs
-    symbols.forEach((symbol) => {
-      const key = symbol.toLowerCase();
-      delete marketDataRef.current[key];
-      loadedSymbolsRef.current.delete(key);
-    });
-
-    // Only merge CMC data if it's not stale
-    const now = Date.now();
-    const cmcTimestamp = cmcQuery.data?.timestamp || 0;
-    const isCMCStale = now - cmcTimestamp > 10 * 60 * 1000; // 10 minutes
-
-    const merged = {
-      ...geckoData,
-      ...(isCMCStale ? {} : cmcData), // Only include CMC data if it's not stale
-    };
-    Object.assign(marketDataRef.current, merged);
-
-    Object.values(merged).forEach((coin) =>
-      loadedSymbolsRef.current.add(coin.symbol.toLowerCase())
-    );
-
-    return {
-      data: Object.values(merged),
-      timestamp: Math.max(
-        geckoQuery.data?.timestamp || 0,
-        cmcQuery.data?.timestamp || 0
-      ),
-      loadedCount: loadedSymbolsRef.current.size,
-      hasCMCData: !isCMCStale && Object.keys(cmcData).length > 0,
-    };
-  }, [geckoQuery.data, cmcQuery.data, symbols]);
+  const mergedData = {
+    data: [
+      ...Object.values(geckoQuery.data?.data || {}),
+      ...Object.values(cmcQuery.data?.data || {}),
+    ],
+    timestamp: Math.max(
+      geckoQuery.data?.timestamp || 0,
+      cmcQuery.data?.timestamp || 0
+    ),
+    loadedCount: loadedSymbolsRef.current.size,
+  };
 
   return {
     data: mergedData,

@@ -15,13 +15,23 @@ interface StatsModalProps {
   onClose: () => void;
 }
 
+interface StatsData {
+  totalMentions: number;
+  averageRPoints: number;
+  topChannels: Array<{
+    name: string;
+    mentions: number;
+  }>;
+  // Add other stats properties as needed
+}
+
 export function StatsModal({ item, onClose }: StatsModalProps) {
   const [activeTab, setActiveTab] = useState<
     "stats" | "summary" | "transcript"
   >("stats");
   const [searchQuery, setSearchQuery] = useState("");
   const [currentMatchIndex, setCurrentMatchIndex] = useState(-1);
-  const [matchedProjects, setMatchedProjects] = useState<any[]>([]);
+  const [matchedProjects, setMatchedProjects] = useState<StatsData[]>([]);
   const transcriptRef = useRef<HTMLDivElement>(null);
   const { topCoins, isLoading: isLoadingCoins, matchCoins } = useCoinGecko();
 
