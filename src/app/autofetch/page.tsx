@@ -14,7 +14,6 @@ import {
 import { Button } from "@/components/ui/button";
 import { Loader2, BrainCircuit } from "lucide-react";
 import { Toaster } from "@/components/ui/toaster";
-import { ModelSelector } from "@/app/analytics/components/ModelSelector";
 
 // Define model types with their configurations
 type ModelConfig = {
@@ -37,6 +36,18 @@ const AI_MODELS: ModelConfig[] = [
     description: "Fast and efficient for quick insights",
     color: "from-purple-500 to-indigo-500",
   },
+  {
+    id: "grok",
+    name: "Grok",
+    description: "Witty and sharp with real-time insights",
+    color: "from-orange-500 to-red-500",
+  },
+  {
+    id: "gemini",
+    name: "Gemini",
+    description: "Most capable model for complex analysis",
+    color: "from-blue-500 to-red-500",
+  },
 ];
 
 export default function AutofetchPage() {
@@ -44,7 +55,6 @@ export default function AutofetchPage() {
   const { toast } = useToast();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [selectedModel, setSelectedModel] = useState<string>("");
-  const [selectedModels, setSelectedModels] = useState<string[]>([]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -70,7 +80,7 @@ export default function AutofetchPage() {
       });
 
       setTimeout(() => {
-        router.push("/analytics");
+        router.push("/knowledge");
       }, 3000);
     } catch (error) {
       console.error("Error:", error);
@@ -110,15 +120,6 @@ export default function AutofetchPage() {
 
             <CardContent className="pt-6">
               <form onSubmit={handleSubmit} className="space-y-6">
-                {/* Model Selector */}
-                <div className="flex justify-end">
-                  <ModelSelector
-                    models={AI_MODELS.map((m) => m.id)}
-                    selectedModels={selectedModels}
-                    onModelsChange={setSelectedModels}
-                  />
-                </div>
-
                 {/* AI Model Selection */}
                 <div className="grid grid-cols-1 gap-4">
                   {AI_MODELS.map((model) => (

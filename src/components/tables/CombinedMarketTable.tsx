@@ -40,7 +40,6 @@ interface ProcessedData {
   categoryDistribution: { name: string; value: number }[];
   coinCategories: CoinCategoryData[];
   channels: string[];
-  models: string[];
 }
 
 interface DateRange {
@@ -80,18 +79,14 @@ export function CombinedMarketTable({
     const dates = new Set<string>();
     processedData.coinCategories.forEach((coin) => {
       if (
-        (selectedChannels.length === 0 ||
-          selectedChannels.includes(coin.channel)) &&
-        (selectedModels.length === 0 ||
-          !coin.model ||
-          selectedModels.includes(coin.model) ||
-          (selectedModels.includes("all") && coin.model))
+        selectedChannels.length === 0 ||
+        selectedChannels.includes(coin.channel)
       ) {
         dates.add(coin.date);
       }
     });
     return Array.from(dates).sort();
-  }, [processedData.coinCategories, selectedChannels, selectedModels]);
+  }, [processedData.coinCategories, selectedChannels]);
 
   // Get earliest and latest dates
   const dateRangeInfo = useMemo(() => {
@@ -194,18 +189,10 @@ export function CombinedMarketTable({
       selectedChannels.length > 0 ? selectedChannels : processedData.channels;
     const channelSet = new Set(channels);
 
-    const models =
-      selectedModels.length > 0 ? selectedModels : processedData.models;
-    const modelSet = new Set(models);
-    const includeAllModels = modelSet.has("all");
-
     // Get latest dates for each channel
     const latestDates = new Map<string, string>();
     processedData.coinCategories.forEach((c) => {
-      if (
-        channelSet.has(c.channel) &&
-        (includeAllModels || !c.model || modelSet.has(c.model))
-      ) {
+      if (channelSet.has(c.channel)) {
         if (
           !latestDates.has(c.channel) ||
           c.date > latestDates.get(c.channel)!
@@ -218,7 +205,6 @@ export function CombinedMarketTable({
     // First pass: collect all symbols and their points
     processedData.coinCategories.forEach((coin) => {
       if (!channelSet.has(coin.channel)) return;
-      if (!includeAllModels && coin.model && !modelSet.has(coin.model)) return;
 
       // Skip if not from latest date when showMostRecent is true
       if (showMostRecent && coin.date !== latestDates.get(coin.channel)) {
@@ -261,9 +247,7 @@ export function CombinedMarketTable({
   }, [
     processedData.coinCategories,
     processedData.channels,
-    processedData.models,
     selectedChannels,
-    selectedModels,
     showMostRecent,
   ]);
 
@@ -340,13 +324,15 @@ export function CombinedMarketTable({
           existing.points = coin.rpoints;
           existing.date = coin.date;
         }
-        // Accumulate total_count across all videos
-        existing.mentions += coin.total_count || 0;
+        // Add total_count to mentions only if from selected channels
+        if (channelSet.has(coin.channel)) {
+          existing.mentions += coin.total_count || 1;
+        }
       } else {
-        // Initialize new entry with total_count
+        // Initialize new entry with total_count only if from selected channels
         coinStatsMap.set(key, {
           points: coin.rpoints,
-          mentions: coin.total_count || 0,
+          mentions: channelSet.has(coin.channel) ? coin.total_count || 1 : 0,
           date: coin.date,
         });
       }
@@ -362,21 +348,32 @@ export function CombinedMarketTable({
 
         if (matchedCoins.has(coinId)) return null;
 
-        const statsBySymbol = coinStatsMap.get(cleanSymbol);
-        const statsByName = coinStatsMap.get(cleanName);
-        const stats = statsBySymbol || statsByName;
+        // Use exact matching like ChannelMentionsTable
+        const stats =
+          coinStatsMap.get(cleanSymbol) || coinStatsMap.get(cleanName);
+        if (!stats) return null;
 
-        if (stats) {
-          matchedCoins.add(coinId);
-          return {
-            ...coin,
-            rpoints: stats.points,
-            total_mentions: stats.mentions,
-            data_source: coin.cmc_id ? "cmc" : "coingecko",
-          };
+        // Filter by selected models
+        const coinData = processedData.coinCategories.find(
+          (c) =>
+            c.coin.toLowerCase() === cleanSymbol ||
+            c.coin.toLowerCase() === cleanName
+        );
+        if (
+          coinData &&
+          selectedModels.length > 0 &&
+          !selectedModels.includes(coinData.model || "")
+        ) {
+          return null;
         }
 
-        return null;
+        matchedCoins.add(coinId);
+        return {
+          ...coin,
+          rpoints: stats.points,
+          total_mentions: stats.mentions,
+          data_source: coin.cmc_id ? "cmc" : "coingecko",
+        };
       })
       .filter((coin): coin is ExtendedCoinData => coin !== null)
       .sort((a, b) => b.rpoints - a.rpoints || b.market_cap - a.market_cap);
@@ -390,6 +387,7 @@ export function CombinedMarketTable({
     showMostRecent,
     processedData.channels,
     dateRange,
+    selectedModels,
   ]);
 
   const memoizedColumns = useMemo(
@@ -543,18 +541,12 @@ export function CombinedMarketTable({
     handleCoinSelect(row);
 
     // Use different ID format based on data source
-    let coinId;
-    if (row.data_source === "cmc" && row.cmc_id) {
-      // Format for CMC: cmc-{numericId}
-      coinId = `cmc-${row.cmc_id}`;
-      console.log(`Navigating to CMC coin: ${coinId}`, row);
+    if (row.data_source === "cmc") {
+      const coinId = `cmc-${row.cmc_id}`;
+      router.push(`/coin/${coinId}`);
     } else {
-      // Use coingecko ID
-      coinId = row.coingecko_id || row.id;
-      console.log(`Navigating to CoinGecko coin: ${coinId}`, row);
+      router.push(`/coin/${row.id}`);
     }
-
-    router.push(`/coin/${coinId}`);
   };
 
   return (

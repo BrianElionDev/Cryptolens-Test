@@ -10,19 +10,6 @@ import { Button } from "@/components/ui/button";
 import { Filter, X, ArrowRight } from "lucide-react";
 import Link from "next/link";
 
-type CategoryData = {
-  name: string;
-  coins: string[];
-  totalRpoints: number;
-  mentions: number;
-  marketCapDistribution: {
-    large: number;
-    medium: number;
-    small: number;
-  };
-  recentActivity: number;
-};
-
 type SortOption = "rpoints" | "mentions" | "coins" | "recent";
 
 function CategoriesContent() {

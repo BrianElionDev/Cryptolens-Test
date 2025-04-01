@@ -112,7 +112,10 @@ export function KnowledgeFilter({
                 className="flex items-center px-4 py-2 hover:bg-gray-800/60 cursor-pointer rounded group"
               >
                 <Checkbox
-                  checked={!tempSelectedModels.includes(model as string)}
+                  checked={
+                    tempSelectedModels.includes(model as string) ||
+                    tempSelectedModels.includes("all")
+                  }
                   onCheckedChange={(checked) =>
                     handleModelSelection(!!checked, model as string)
                   }

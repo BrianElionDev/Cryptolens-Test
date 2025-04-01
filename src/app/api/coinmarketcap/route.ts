@@ -249,35 +249,61 @@ export async function POST(request: Request) {
     const marketData: CMCResponse[] = response.data.data;
     const allCoinData: Record<string, CoinData> = {};
 
-    // Process requested symbols
-    for (const symbol of requestSymbols) {
-      const match = marketData.find(
-        (coin) =>
-          coin.symbol.toLowerCase() === symbol.toLowerCase() ||
-          coin.name.toLowerCase() === symbol.toLowerCase()
-      );
-
-      if (match) {
-        const key = symbol.toLowerCase();
+    // If no specific symbols requested, return all coins
+    if (requestSymbols.length === 0) {
+      marketData.forEach((coin) => {
+        const key = coin.symbol.toLowerCase();
         allCoinData[key] = {
-          id: match.slug,
-          name: match.name,
-          symbol: match.symbol,
-          price: match.quote.USD.price,
-          market_cap: match.quote.USD.market_cap,
-          volume_24h: match.quote.USD.volume_24h,
-          percent_change_24h: match.quote.USD.percent_change_24h,
-          percent_change_7d: match.quote.USD.percent_change_7d,
-          percent_change_1h: match.quote.USD.percent_change_1h,
-          cmc_id: match.id,
-          rank: match.cmc_rank,
-          circulating_supply: match.circulating_supply,
-          total_supply: match.total_supply,
-          max_supply: match.max_supply,
-          market_cap_dominance: match.quote.USD.market_cap_dominance,
-          fully_diluted_market_cap: match.quote.USD.fully_diluted_market_cap,
-          image: `https://s2.coinmarketcap.com/static/img/coins/64x64/${match.id}.png`,
+          id: coin.slug,
+          name: coin.name,
+          symbol: coin.symbol,
+          price: coin.quote.USD.price,
+          market_cap: coin.quote.USD.market_cap,
+          volume_24h: coin.quote.USD.volume_24h,
+          percent_change_24h: coin.quote.USD.percent_change_24h,
+          percent_change_7d: coin.quote.USD.percent_change_7d,
+          percent_change_1h: coin.quote.USD.percent_change_1h,
+          cmc_id: coin.id,
+          rank: coin.cmc_rank,
+          circulating_supply: coin.circulating_supply,
+          total_supply: coin.total_supply,
+          max_supply: coin.max_supply,
+          market_cap_dominance: coin.quote.USD.market_cap_dominance,
+          fully_diluted_market_cap: coin.quote.USD.fully_diluted_market_cap,
+          image: `https://s2.coinmarketcap.com/static/img/coins/64x64/${coin.id}.png`,
         };
+      });
+    } else {
+      // Process requested symbols
+      for (const symbol of requestSymbols) {
+        const match = marketData.find(
+          (coin) =>
+            coin.symbol.toLowerCase() === symbol.toLowerCase() ||
+            coin.name.toLowerCase() === symbol.toLowerCase()
+        );
+
+        if (match) {
+          const key = symbol.toLowerCase();
+          allCoinData[key] = {
+            id: match.slug,
+            name: match.name,
+            symbol: match.symbol,
+            price: match.quote.USD.price,
+            market_cap: match.quote.USD.market_cap,
+            volume_24h: match.quote.USD.volume_24h,
+            percent_change_24h: match.quote.USD.percent_change_24h,
+            percent_change_7d: match.quote.USD.percent_change_7d,
+            percent_change_1h: match.quote.USD.percent_change_1h,
+            cmc_id: match.id,
+            rank: match.cmc_rank,
+            circulating_supply: match.circulating_supply,
+            total_supply: match.total_supply,
+            max_supply: match.max_supply,
+            market_cap_dominance: match.quote.USD.market_cap_dominance,
+            fully_diluted_market_cap: match.quote.USD.fully_diluted_market_cap,
+            image: `https://s2.coinmarketcap.com/static/img/coins/64x64/${match.id}.png`,
+          };
+        }
       }
     }
 
