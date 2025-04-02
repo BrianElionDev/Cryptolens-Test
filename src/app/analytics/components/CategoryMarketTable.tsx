@@ -152,7 +152,7 @@ export const CategoryMarketTable = ({
                         />
                       </div>
                       <span className="text-cyan-200 font-bold whitespace-nowrap">
-                        {formatNumber(category.total_rpoints, "default")}
+                        {formatNumber(category.total_rpoints)}
                       </span>
                     </div>
                   </td>
