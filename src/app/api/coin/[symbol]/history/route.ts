@@ -24,7 +24,7 @@ const historyCache = new Map<string, CacheEntry>();
 export async function GET(
   request: NextRequest,
   context: { params: Promise<{ symbol: string }> }
-) {
+): Promise<NextResponse> {
   try {
     const searchParams = request.nextUrl.searchParams;
     const days = searchParams.get("days") || "1";
