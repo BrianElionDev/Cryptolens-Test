@@ -28,3 +28,11 @@ export function formatPercentage(value: number): string {
 
   return formatted;
 }
+
+export function formatNumber(value: number | undefined): string {
+  if (value === undefined || value === null) return "0";
+
+  return new Intl.NumberFormat("en-US", {
+    maximumFractionDigits: 2,
+  }).format(value);
+}
