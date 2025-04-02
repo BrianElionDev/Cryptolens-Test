@@ -44,12 +44,12 @@ export default function FAQ() {
               value={question}
               onChange={(e) => setQuestion(e.target.value)}
               placeholder="Ask anything about crypto..."
-              className="w-full bg-gray-900/60 bg-gradient-to-r from-blue-600/10 to-purple-600/10 border border-blue-500/30 rounded-lg py-3 px-4 text-gray-200 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500/50 focus:border-blue-400/50 transition-all duration-200 hover:from-blue-600/20 hover:to-purple-600/20"
+              className="w-full bg-gray-900/60 bg-gradient-to-r from-green-600/10 to-emerald-600/10 border border-green-500/30 rounded-lg py-3 px-4 text-gray-200 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-green-500/50 focus:border-green-400/50 transition-all duration-200 hover:from-green-600/20 hover:to-emerald-600/20"
             />
           </div>
           <button
             type="submit"
-            className="inline-flex items-center justify-center px-6 py-3 border border-transparent text-base font-medium rounded-lg text-white bg-gradient-to-r from-blue-500 via-purple-500 to-pink-500 hover:from-blue-600 hover:via-purple-600 hover:to-pink-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-purple-500 transition-all duration-200 shadow-lg shadow-purple-500/20 whitespace-nowrap"
+            className="inline-flex items-center justify-center px-6 py-3 border border-transparent text-base font-medium rounded-lg text-white bg-gradient-to-r from-green-500 via-emerald-500 to-green-600 hover:from-green-600 hover:via-emerald-600 hover:to-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 transition-all duration-200 shadow-lg shadow-green-500/20 whitespace-nowrap"
           >
             Ask Question
           </button>
@@ -57,13 +57,13 @@ export default function FAQ() {
       </form>
 
       <div className="mt-6 bg-gray-800/40 backdrop-blur-sm rounded-xl p-6 border border-gray-700/50 min-h-[200px]">
-        <h3 className="text-lg font-medium text-cyan-200 mb-3">Analysis:</h3>
+        <h3 className="text-lg font-medium text-green-200 mb-3">Analysis:</h3>
 
         {isLoading ? (
           <div className="flex items-center justify-center h-32">
             <div className="relative">
-              <div className="w-12 h-12 border-4 border-blue-400/30 rounded-full"></div>
-              <div className="w-12 h-12 border-4 border-blue-500 rounded-full animate-spin absolute top-0 left-0 border-t-transparent"></div>
+              <div className="w-12 h-12 border-4 border-green-400/30 rounded-full"></div>
+              <div className="w-12 h-12 border-4 border-green-500 rounded-full animate-spin absolute top-0 left-0 border-t-transparent"></div>
             </div>
           </div>
         ) : error ? (

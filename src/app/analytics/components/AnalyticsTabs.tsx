@@ -20,7 +20,7 @@ export function AnalyticsTabs({ activeTab, onTabChange }: AnalyticsTabsProps) {
         <TabsList className="grid grid-cols-3 bg-gray-900/50 backdrop-blur-sm">
           <TabsTrigger
             value="market"
-            className="data-[state=active]:bg-blue-500/20 data-[state=active]:text-blue-300"
+            className="data-[state=active]:bg-purple-500/20 data-[state=active]:text-purple-300"
           >
             Market
           </TabsTrigger>
@@ -32,7 +32,7 @@ export function AnalyticsTabs({ activeTab, onTabChange }: AnalyticsTabsProps) {
           </TabsTrigger>
           <TabsTrigger
             value="categories"
-            className="data-[state=active]:bg-blue-500/20 data-[state=active]:text-blue-300"
+            className="data-[state=active]:bg-amber-500/20 data-[state=active]:text-amber-300"
           >
             Categories
           </TabsTrigger>

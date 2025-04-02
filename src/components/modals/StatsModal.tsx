@@ -9,20 +9,25 @@ import React from "react";
 import { useCoinGecko } from "@/contexts/CoinGeckoContext";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
+import Link from "next/link";
 
 interface StatsModalProps {
   item: KnowledgeItem;
   onClose: () => void;
 }
 
-interface StatsData {
-  totalMentions: number;
-  averageRPoints: number;
-  topChannels: Array<{
+interface Project {
+  coin_or_project: string;
+  marketcap: string;
+  rpoints: number;
+  total_count: number;
+  category?: string[];
+  coingecko_matched?: boolean;
+  coingecko_data?: {
+    id: string;
+    symbol: string;
     name: string;
-    mentions: number;
-  }>;
-  // Add other stats properties as needed
+  };
 }
 
 export function StatsModal({ item, onClose }: StatsModalProps) {
@@ -31,7 +36,7 @@ export function StatsModal({ item, onClose }: StatsModalProps) {
   >("stats");
   const [searchQuery, setSearchQuery] = useState("");
   const [currentMatchIndex, setCurrentMatchIndex] = useState(-1);
-  const [matchedProjects, setMatchedProjects] = useState<StatsData[]>([]);
+  const [matchedProjects, setMatchedProjects] = useState<Project[]>([]);
   const transcriptRef = useRef<HTMLDivElement>(null);
   const { topCoins, isLoading: isLoadingCoins, matchCoins } = useCoinGecko();
 
@@ -83,8 +88,8 @@ export function StatsModal({ item, onClose }: StatsModalProps) {
                   }
                 : undefined
             }
-            className={`bg-blue-500/20 text-blue-200 px-1 rounded ${
-              isCurrentMatch ? "ring-2 ring-blue-400" : ""
+            className={`bg-green-500/20 text-green-200 px-1 rounded ${
+              isCurrentMatch ? "ring-2 ring-green-400" : ""
             }`}
           >
             {part}
@@ -117,7 +122,7 @@ export function StatsModal({ item, onClose }: StatsModalProps) {
       if (isLoadingCoins) {
         return (
           <div className="mt-4 flex flex-col items-center justify-center p-8 space-y-4">
-            <div className="w-8 h-8 border-2 border-blue-500/20 border-t-blue-500 rounded-full animate-spin" />
+            <div className="w-8 h-8 border-2 border-green-500/20 border-t-green-500 rounded-full animate-spin" />
             <p className="text-sm text-gray-400">Loading coin data...</p>
           </div>
         );
@@ -159,27 +164,27 @@ export function StatsModal({ item, onClose }: StatsModalProps) {
       return (
         <div className="mt-4 space-y-4">
           <div className="overflow-x-auto">
-            <table className="min-w-full divide-y divide-gray-700/30 backdrop-blur-sm">
-              <thead className="bg-gray-800/30">
+            <table className="min-w-full divide-y divide-green-500/20 backdrop-blur-sm">
+              <thead className="bg-black/20">
                 <tr>
-                  <th className="px-4 py-2 text-left text-xs font-medium text-cyan-200 uppercase tracking-wider">
+                  <th className="px-4 py-2 text-left text-xs font-medium text-green-200 uppercase tracking-wider">
                     Coins
                   </th>
-                  <th className="px-4 py-2 text-left text-xs font-medium text-cyan-200 uppercase tracking-wider">
+                  <th className="px-4 py-2 text-left text-xs font-medium text-green-200 uppercase tracking-wider">
                     Market Cap
                   </th>
-                  <th className="px-4 py-2 text-left text-xs font-medium text-cyan-200 uppercase tracking-wider">
+                  <th className="px-4 py-2 text-left text-xs font-medium text-green-200 uppercase tracking-wider">
                     Total Count
                   </th>
-                  <th className="px-4 py-2 text-left text-xs font-medium text-cyan-200 uppercase tracking-wider">
+                  <th className="px-4 py-2 text-left text-xs font-medium text-green-200 uppercase tracking-wider">
                     R Points
                   </th>
-                  <th className="px-4 py-2 text-left text-xs font-medium text-cyan-200 uppercase tracking-wider">
+                  <th className="px-4 py-2 text-left text-xs font-medium text-green-200 uppercase tracking-wider">
                     Categories
                   </th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-gray-700/30 bg-gray-800/10">
+              <tbody className="divide-y divide-green-500/20 bg-black/10">
                 {[...projects]
                   .sort((a, b) => Number(b.rpoints) - Number(a.rpoints))
                   .map((project, index) => {
@@ -191,14 +196,14 @@ export function StatsModal({ item, onClose }: StatsModalProps) {
                         key={`${project.coin_or_project}-${index}`}
                         className={`transition-all duration-200 backdrop-blur-sm ${
                           isTopProject
-                            ? "bg-blue-900/10"
-                            : "hover:bg-gray-700/10"
+                            ? "bg-green-900/10"
+                            : "hover:bg-green-500/5"
                         }`}
                       >
                         <td className="px-4 py-2 text-sm">
                           <span
                             className={`font-medium ${
-                              isTopProject ? "text-blue-200" : "text-gray-300"
+                              isTopProject ? "text-green-200" : "text-gray-300"
                             }`}
                           >
                             {project.coin_or_project}
@@ -210,7 +215,7 @@ export function StatsModal({ item, onClose }: StatsModalProps) {
                               project.marketcap === "large"
                                 ? "bg-green-900/50 text-green-300 border border-green-500/20"
                                 : project.marketcap === "medium"
-                                ? "bg-yellow-900/50 text-yellow-300 border border-yellow-500/20"
+                                ? "bg-emerald-900/50 text-emerald-300 border border-emerald-500/20"
                                 : "bg-red-900/50 text-red-300 border border-red-500/20"
                             }`}
                           >
@@ -220,7 +225,7 @@ export function StatsModal({ item, onClose }: StatsModalProps) {
                         <td className="px-4 py-2 text-sm">
                           <span
                             className={
-                              isTopProject ? "text-blue-200" : "text-gray-300"
+                              isTopProject ? "text-green-200" : "text-gray-300"
                             }
                           >
                             {project.total_count}
@@ -229,7 +234,7 @@ export function StatsModal({ item, onClose }: StatsModalProps) {
                         <td className="px-4 py-2 text-sm">
                           <span
                             className={
-                              isTopProject ? "text-blue-200" : "text-gray-300"
+                              isTopProject ? "text-green-200" : "text-gray-300"
                             }
                           >
                             {project.rpoints}
@@ -238,13 +243,16 @@ export function StatsModal({ item, onClose }: StatsModalProps) {
                         <td className="px-4 py-2 text-sm">
                           <div className="flex flex-wrap gap-1">
                             {project.category?.map((cat: string, i: number) => (
-                              <span
+                              <Link
                                 key={`${project.coin_or_project}-${cat}-${i}`}
-                                className="px-2 py-0.5 rounded-full text-xs bg-gray-900/50 text-gray-300 border border-gray-700/50"
+                                href={`/categories/${cat
+                                  .toLowerCase()
+                                  .replace(/\s+/g, "-")}`}
+                                className="px-2 py-0.5 rounded-full text-xs bg-black/50 text-gray-300 border border-green-500/20 hover:bg-green-500/10 hover:text-green-300 transition-colors"
                               >
                                 {cat}
-                              </span>
-                            )) || "-"}
+                              </Link>
+                            ))}
                           </div>
                         </td>
                       </tr>
@@ -271,7 +279,7 @@ export function StatsModal({ item, onClose }: StatsModalProps) {
         initial={{ scale: 0.9, opacity: 0 }}
         animate={{ scale: 1, opacity: 1 }}
         exit={{ scale: 0.9, opacity: 0 }}
-        className="bg-gray-800 rounded-xl p-6 max-w-4xl w-full max-h-[90vh] overflow-hidden flex flex-col"
+        className="bg-black/80 rounded-xl p-6 max-w-4xl w-full max-h-[90vh] overflow-hidden flex flex-col ring-2 ring-green-500/20"
         onClick={(e) => e.stopPropagation()}
       >
         {/* Modal Header */}
@@ -324,7 +332,7 @@ export function StatsModal({ item, onClose }: StatsModalProps) {
         </Tabs>
 
         {/* Tab Content */}
-        <div className="flex-1 overflow-y-auto mt-6">
+        <div className="flex-1 overflow-y-auto mt-6 [&::-webkit-scrollbar]:w-2 [&::-webkit-scrollbar-track]:bg-black/20 [&::-webkit-scrollbar-thumb]:bg-green-500/80 [&::-webkit-scrollbar-thumb]:rounded-full hover:[&::-webkit-scrollbar-thumb]:bg-green-500/30">
           {activeTab === "stats" ? (
             renderLLMAnswer()
           ) : activeTab === "summary" ? (
@@ -337,7 +345,7 @@ export function StatsModal({ item, onClose }: StatsModalProps) {
                       return (
                         <h2
                           key={`h2-${index}-${paragraph.slice(0, 20)}`}
-                          className="text-2xl font-bold text-cyan-200 mb-6 mt-10 first:mt-0 border-b border-gray-700/50 pb-3"
+                          className="text-2xl font-bold text-green-200/80 mb-6 mt-10 first:mt-0 border-b border-gray-700/50 pb-3"
                         >
                           {paragraph.replace(/##/g, "").trim()}
                         </h2>
@@ -347,7 +355,7 @@ export function StatsModal({ item, onClose }: StatsModalProps) {
                       return (
                         <h3
                           key={`h3-${index}-${paragraph.slice(0, 20)}`}
-                          className="text-xl font-bold text-blue-300 mb-4 mt-8"
+                          className="text-xl font-bold text-green-200/80 mb-4 mt-8"
                         >
                           {paragraph.replace(/###/g, "").trim()}
                         </h3>
@@ -357,7 +365,7 @@ export function StatsModal({ item, onClose }: StatsModalProps) {
                       return (
                         <h4
                           key={`h4-${index}-${paragraph.slice(0, 20)}`}
-                          className="text-lg font-semibold text-blue-300/90 mb-3 mt-6"
+                          className="text-lg font-semibold text-green-200/80 mb-3 mt-6"
                         >
                           {paragraph.replace(/####/g, "").trim()}
                         </h4>
@@ -372,7 +380,7 @@ export function StatsModal({ item, onClose }: StatsModalProps) {
                             key={`bullet-bold-${index}-${content.slice(0, 20)}`}
                             className="flex items-start space-x-3 mb-4 group"
                           >
-                            <span className="text-blue-400 mt-1.5 group-hover:text-blue-300 transition-colors text-lg">
+                            <span className="text-green-400 mt-1.5 group-hover:text-green-300 transition-colors text-lg">
                               •
                             </span>
                             <div className="flex-1">
@@ -386,14 +394,14 @@ export function StatsModal({ item, onClose }: StatsModalProps) {
                                     return (
                                       <strong
                                         key={i}
-                                        className="text-cyan-200 font-semibold"
+                                        className="text-green-200/80 font-semibold"
                                       >
                                         {part.slice(2, -2)}
                                       </strong>
                                     );
                                   }
                                   return (
-                                    <span key={i} className="text-gray-200">
+                                    <span key={i} className="text-green-200/80">
                                       {part}
                                     </span>
                                   );
@@ -407,10 +415,10 @@ export function StatsModal({ item, onClose }: StatsModalProps) {
                           key={`bullet-${index}-${content.slice(0, 20)}`}
                           className="flex items-start space-x-3 mb-4 group"
                         >
-                          <span className="text-blue-400 mt-1.5 group-hover:text-blue-300 transition-colors text-lg">
+                          <span className="text-green-400 mt-1.5 group-hover:text-green-300 transition-colors text-lg">
                             •
                           </span>
-                          <p className="text-gray-200 leading-relaxed flex-1">
+                          <p className="text-green-200/80 leading-relaxed flex-1">
                             {content}
                           </p>
                         </div>
@@ -428,7 +436,7 @@ export function StatsModal({ item, onClose }: StatsModalProps) {
                             )}`}
                             className="flex items-start space-x-3 mb-3 group ml-6"
                           >
-                            <span className="text-blue-400/70 mt-1.5 group-hover:text-blue-300 transition-colors">
+                            <span className="text-green-400/70 mt-1.5 group-hover:text-green-300 transition-colors">
                               •
                             </span>
                             <div className="flex-1">
@@ -442,7 +450,7 @@ export function StatsModal({ item, onClose }: StatsModalProps) {
                                     return (
                                       <strong
                                         key={i}
-                                        className="text-cyan-200 font-semibold"
+                                        className="text-green-200/80 font-semibold"
                                       >
                                         {part.slice(2, -2)}
                                       </strong>

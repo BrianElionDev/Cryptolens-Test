@@ -21,6 +21,7 @@ type ModelConfig = {
   name: string;
   description: string;
   color: string;
+  accent: string;
 };
 
 const AI_MODELS: ModelConfig[] = [
@@ -28,25 +29,29 @@ const AI_MODELS: ModelConfig[] = [
     id: "openai",
     name: "OpenAI GPT-4",
     description: "Most capable model for complex analysis",
-    color: "from-green-500 to-emerald-500",
+    color: "from-blue-500 to-blue-600",
+    accent: "blue",
   },
   {
     id: "perplexity",
     name: "Perplexity",
     description: "Fast and efficient for quick insights",
-    color: "from-purple-500 to-indigo-500",
+    color: "from-purple-500 to-purple-600",
+    accent: "purple",
   },
   {
     id: "grok",
     name: "Grok",
     description: "Witty and sharp with real-time insights",
-    color: "from-orange-500 to-red-500",
+    color: "from-green-500 to-green-600",
+    accent: "green",
   },
   {
     id: "gemini",
     name: "Gemini",
     description: "Most capable model for complex analysis",
-    color: "from-blue-500 to-red-500",
+    color: "from-amber-500 to-amber-600",
+    accent: "amber",
   },
 ];
 
@@ -76,7 +81,7 @@ export default function AutofetchPage() {
       toast({
         title: "Success",
         description: "Analysis started successfully!",
-        className: "bg-green-800 border-green-900 text-white",
+        className: "bg-blue-800 border-blue-900 text-white",
       });
 
       setTimeout(() => {
@@ -95,25 +100,36 @@ export default function AutofetchPage() {
   };
 
   return (
-    <div className="min-h-screen pt-24 bg-gradient-to-br from-gray-900 via-blue-900/20 to-gray-900">
-      <Toaster />
-      <div className="container max-w-2xl mx-auto px-4">
-        <div className="relative">
-          <div className="absolute -inset-1 bg-gradient-to-r from-blue-600/20 via-purple-600/20 to-pink-600/20 rounded-3xl blur-xl opacity-60 animate-pulse"></div>
+    <div className="min-h-screen pt-24 bg-gradient-to-br from-black via-blue-950/20 to-black relative overflow-hidden">
+      {/* Background Animation */}
+      <div className="fixed inset-0 overflow-hidden pointer-events-none">
+        <div className="absolute -inset-[10px] opacity-50">
+          <div className="absolute top-1/4 -left-20 w-[500px] h-[500px] bg-blue-600/10 rounded-full mix-blend-multiply filter blur-xl" />
+          <div className="absolute top-1/3 -right-20 w-[600px] h-[600px] bg-purple-500/10 rounded-full mix-blend-multiply filter blur-xl" />
+          <div className="absolute -bottom-32 left-1/3 w-[600px] h-[600px] bg-blue-400/5 rounded-full mix-blend-multiply filter blur-xl" />
+        </div>
+        <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/50 to-transparent" />
+        <div className="absolute inset-0 bg-[url('/grid.svg')] opacity-[0.03]" />
+      </div>
 
-          <Card className="relative border-gray-800/40 bg-black/40 backdrop-blur-xl shadow-2xl transition-all duration-300 hover:translate-y-[-2px] hover:shadow-purple-500/10">
+      <Toaster />
+      <div className="container max-w-2xl mx-auto px-4 relative z-10">
+        <div className="relative">
+          <div className="absolute -inset-1 bg-gradient-to-r from-blue-600/20 via-purple-600/20 to-blue-500/20 rounded-3xl blur-xl opacity-60 animate-pulse"></div>
+
+          <Card className="relative glassmorphic glass-border shadow-2xl transition-all duration-300 hover:translate-y-[-2px] hover:glass-glow">
             <CardHeader className="pb-2">
               <div className="flex justify-between items-start">
                 <div className="space-y-1">
-                  <CardTitle className="text-3xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-blue-400 via-purple-400 to-pink-400 pb-1">
+                  <CardTitle className="text-3xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-blue-400 via-purple-300 to-blue-200 blue-text-glow pb-1">
                     AI Analysis
                   </CardTitle>
                   <CardDescription className="text-gray-100 text-base">
                     Select an AI model to analyze content
                   </CardDescription>
                 </div>
-                <div className="w-14 h-14 rounded-xl bg-gradient-to-br from-purple-500/10 to-pink-500/10 flex items-center justify-center border border-purple-800/40 shadow-inner">
-                  <BrainCircuit className="w-7 h-7 text-purple-400/90" />
+                <div className="w-14 h-14 rounded-xl bg-gradient-to-br from-blue-500/10 to-purple-500/10 flex items-center justify-center glass-border shadow-inner">
+                  <BrainCircuit className="w-7 h-7 text-blue-400/90" />
                 </div>
               </div>
             </CardHeader>
@@ -127,14 +143,10 @@ export default function AutofetchPage() {
                       key={model.id}
                       type="button"
                       onClick={() => setSelectedModel(model.id)}
-                      className={`relative p-4 rounded-lg border transition-all ${
+                      className={`relative p-4 rounded-lg transition-all ${
                         selectedModel === model.id
-                          ? `border-${
-                              model.color.split("-")[1]
-                            }-500/50 bg-gradient-to-br ${
-                              model.color
-                            }/20 shadow-sm`
-                          : "border-gray-800/50 bg-gray-900/40 hover:bg-gray-800/40"
+                          ? `glass-border bg-gradient-to-br ${model.color}/20 glass-glow`
+                          : "glassmorphic-light hover:glass-hover"
                       }`}
                     >
                       <div className="flex items-start gap-4">
@@ -146,7 +158,9 @@ export default function AutofetchPage() {
                           ></div>
                         </div>
                         <div className="flex-1 text-left">
-                          <h3 className="font-medium text-gray-100">
+                          <h3
+                            className={`font-medium text-${model.accent}-100`}
+                          >
                             {model.name}
                           </h3>
                           <p className="text-sm text-gray-400">
@@ -154,7 +168,9 @@ export default function AutofetchPage() {
                           </p>
                         </div>
                         {selectedModel === model.id && (
-                          <div className="w-5 h-5 rounded-full bg-gradient-to-br from-green-500 to-emerald-500 flex items-center justify-center">
+                          <div
+                            className={`w-5 h-5 rounded-full bg-gradient-to-br ${model.color} flex items-center justify-center`}
+                          >
                             <div className="w-2 h-2 rounded-full bg-white"></div>
                           </div>
                         )}
@@ -167,7 +183,7 @@ export default function AutofetchPage() {
                 <Button
                   type="submit"
                   disabled={isSubmitting}
-                  className="w-full h-12 mt-6 bg-gradient-to-r from-blue-500 via-purple-500 to-pink-500 text-white font-medium hover:from-blue-600 hover:via-purple-600 hover:to-pink-600 transition-all duration-300 shadow-lg shadow-purple-500/20"
+                  className="w-full h-12 mt-6 bg-gradient-to-r from-blue-500 to-purple-600 text-white font-medium hover:from-blue-600 hover:to-purple-700 transition-all duration-300 shadow-lg glass-glow"
                 >
                   {isSubmitting ? (
                     <>

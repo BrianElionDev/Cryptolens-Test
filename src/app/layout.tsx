@@ -27,15 +27,15 @@ export default function RootLayout({
               toastOptions={{
                 duration: 6000,
                 style: {
-                  background: "rgba(17, 24, 39, 0.8)",
+                  background: "rgba(15, 23, 18, 0.7)",
                   color: "#E5E7EB",
-                  border: "1px solid rgba(59, 130, 246, 0.2)",
+                  border: "1px solid rgba(22, 163, 74, 0.2)",
                   backdropFilter: "blur(8px)",
                   fontSize: "0.875rem",
                   maxWidth: "400px",
                   padding: "12px 16px",
                   borderRadius: "0.75rem",
-                  boxShadow: "0 8px 16px rgba(0, 0, 0, 0.2)",
+                  boxShadow: "0 8px 32px rgba(0, 0, 0, 0.3)",
                 },
               }}
             />

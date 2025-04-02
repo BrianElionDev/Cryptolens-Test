@@ -16,27 +16,27 @@ export default function Navbar() {
     { href: "/analytics", label: "Analytics" },
     { href: "/categories", label: "Categories" },
     { href: "/autofetch", label: "Autofetch" },
-    { href: "/faq", label: "FAQ" },
+  
   ];
 
   return (
     <div className="fixed top-4 left-1/2 -translate-x-1/2 z-50 w-[95%] max-w-7xl">
       <div className="relative">
         {/* Glow effect */}
-        <div className="absolute -inset-1 bg-gradient-to-r from-blue-600/20 via-purple-600/20 to-pink-600/20 rounded-2xl blur-lg"></div>
+        <div className="absolute -inset-1 bg-gradient-to-r from-green-500/10 via-emerald-500/10 to-green-400/10 rounded-2xl blur-xl"></div>
 
         {/* Main navbar */}
-        <div className="relative bg-gray-900/70 backdrop-blur-xl border border-gray-700/50 rounded-2xl shadow-2xl">
+        <div className="relative glassmorphic rounded-2xl shadow-2xl">
           <div className="px-4 sm:px-6 lg:px-8">
             <div className="flex items-center justify-between h-16">
               {/* Logo */}
               <Link href="/" className="flex items-center">
                 <span
-                  className={`text-xl font-bold bg-gradient-to-r from-blue-400 via-purple-500 to-pink-500 text-transparent bg-clip-text ${
+                  className={`text-xl font-bold bg-gradient-to-r from-green-400 via-emerald-300 to-green-200 text-transparent bg-clip-text green-text-glow ${
                     isActive("/") ? "scale-105" : ""
                   }`}
                 >
-                  CryptoLens
+                  CryptoLens-Test
                 </span>
               </Link>
 
@@ -48,8 +48,8 @@ export default function Navbar() {
                     href={link.href}
                     className={`px-3 py-2 text-sm font-medium transition-all duration-200 ${
                       isActive(link.href)
-                        ? "text-white bg-gradient-to-r from-blue-500/20 via-purple-500/20 to-pink-500/20 rounded-lg scale-105 shadow-lg shadow-purple-500/20 border border-purple-500/20"
-                        : "text-gray-400 hover:text-white hover:bg-gray-800/40 hover:rounded-lg"
+                        ? "text-white glass-gradient rounded-lg scale-105 shadow-lg glass-glow"
+                        : "text-gray-400 hover:text-white hover:glass-hover hover:rounded-lg"
                     }`}
                   >
                     {link.label}
@@ -61,7 +61,7 @@ export default function Navbar() {
               <div className="flex md:hidden">
                 <button
                   onClick={() => setIsMenuOpen(!isMenuOpen)}
-                  className="text-gray-300 hover:text-white p-2 rounded-lg focus:outline-none focus:ring-2 focus:ring-inset focus:ring-blue-500"
+                  className="text-gray-300 hover:text-white p-2 rounded-lg focus:outline-none focus:ring-2 focus:ring-inset focus:ring-green-500"
                 >
                   <span className="sr-only">Open menu</span>
                   {!isMenuOpen ? (
@@ -100,7 +100,7 @@ export default function Navbar() {
               <div className="hidden md:flex items-center">
                 <Link
                   href="/autofetch"
-                  className={`inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-lg text-white bg-gradient-to-r from-blue-500 via-purple-500 to-pink-500 hover:from-blue-600 hover:via-purple-600 hover:to-pink-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-purple-500 transition-all duration-200 shadow-lg shadow-purple-500/20 ${
+                  className={`inline-flex items-center px-4 py-2 text-sm font-medium rounded-lg text-white bg-gradient-to-r from-green-500 to-emerald-600 hover:from-green-600 hover:to-emerald-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 transition-all duration-200 shadow-lg ${
                     isActive("/autofetch") ? "scale-105" : ""
                   }`}
                 >
@@ -114,7 +114,7 @@ export default function Navbar() {
           <div
             className={`${
               isMenuOpen ? "block" : "hidden"
-            } md:hidden border-t border-gray-700/50`}
+            } md:hidden border-t border-green-900/30`}
           >
             <div className="px-2 pt-2 pb-3 space-y-1">
               {navLinks.map((link) => (
@@ -123,8 +123,8 @@ export default function Navbar() {
                   href={link.href}
                   className={`block px-3 py-2 rounded-lg text-base font-medium transition-all duration-200 ${
                     isActive(link.href)
-                      ? "text-white bg-gradient-to-r from-blue-500/20 via-purple-500/20 to-pink-500/20 scale-[1.02] shadow-lg shadow-purple-500/20 border border-purple-500/20"
-                      : "text-gray-400 hover:text-white hover:bg-gray-800/40"
+                      ? "text-white glass-gradient scale-[1.02] glass-glow"
+                      : "text-gray-400 hover:text-white hover:glass-hover"
                   }`}
                   onClick={() => setIsMenuOpen(false)}
                 >
@@ -134,7 +134,7 @@ export default function Navbar() {
               <div className="px-3 py-2">
                 <Link
                   href="/autofetch"
-                  className={`w-full inline-flex items-center justify-center px-4 py-2 border border-transparent text-base font-medium rounded-lg text-white bg-gradient-to-r from-blue-500 via-purple-500 to-pink-500 hover:from-blue-600 hover:via-purple-600 hover:to-pink-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-purple-500 transition-all duration-200 shadow-lg shadow-purple-500/20 ${
+                  className={`w-full inline-flex items-center justify-center px-4 py-2 text-base font-medium rounded-lg text-white bg-gradient-to-r from-green-500 to-emerald-600 hover:from-green-600 hover:to-emerald-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 transition-all duration-200 shadow-lg ${
                     isActive("/autofetch") ? "scale-105" : ""
                   }`}
                   onClick={() => setIsMenuOpen(false)}

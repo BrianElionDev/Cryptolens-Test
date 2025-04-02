@@ -5,8 +5,8 @@ export function LoadingState({ className = "" }: { className?: string }) {
     >
       <div className="relative">
         <div className="w-12 h-12">
-          <div className="absolute w-12 h-12 rounded-full border-4 border-solid border-blue-500/20"></div>
-          <div className="absolute w-12 h-12 rounded-full border-4 border-solid border-blue-500 border-t-transparent animate-spin"></div>
+          <div className="absolute w-12 h-12 rounded-full border-4 border-solid border-green-500/20"></div>
+          <div className="absolute w-12 h-12 rounded-full border-4 border-solid border-green-500 border-t-transparent animate-spin"></div>
         </div>
         <div className="mt-4 text-sm text-gray-400">Loading...</div>
       </div>

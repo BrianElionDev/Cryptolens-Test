@@ -246,19 +246,21 @@ export const ChannelAnalytics = ({ knowledge }: ChannelAnalyticsProps) => {
               <div className="md:bg-gray-900/40 md:backdrop-blur-sm rounded-lg bg-transparent">
                 <GraphsTab
                   processedData={{
-                    projectDistribution: processedData.projectDistribution,
-                    projectTrends: processedData.projectTrends,
-                    coinCategories: processedData.coinCategories.map(
-                      (coin) => ({
-                        coin: coin.coin,
-                        channel: coin.channel,
-                      })
-                    ),
+                    projectDistribution:
+                      processedData.projectDistribution || [],
+                    projectTrends: processedData.projectTrends || new Map(),
+                    coinCategories: Array.isArray(processedData.coinCategories)
+                      ? processedData.coinCategories.map((coin) => ({
+                          coin: coin.coin || "",
+                          channel: coin.channel || "",
+                        }))
+                      : [],
                   }}
                   knowledge={knowledge}
                   selectedProject={selectedProject}
                   setSelectedProject={setSelectedProject}
                   selectedChannels={[knowledge[0]?.["channel name"] || ""]}
+                  selectedModels={[]}
                 />
               </div>
             </div>
@@ -280,19 +282,27 @@ export const ChannelAnalytics = ({ knowledge }: ChannelAnalyticsProps) => {
               <div className="md:bg-gray-900/40 md:backdrop-blur-sm rounded-lg bg-transparent">
                 <CategoriesTab
                   processedData={{
-                    categoryDistribution: processedData.categoryDistribution,
-                    coinCategories: processedData.coinCategories.map(
-                      (coin) => ({
-                        ...coin,
-                        channel: knowledge[0]?.["channel name"] || "",
-                        rpoints:
-                          processedData.coinDistribution.find(
-                            (c) => c.name === coin.coin
-                          )?.value || 0,
-                      })
-                    ),
+                    categoryDistribution: Array.isArray(
+                      processedData.categoryDistribution
+                    )
+                      ? processedData.categoryDistribution
+                      : [],
+                    coinCategories: Array.isArray(processedData.coinCategories)
+                      ? processedData.coinCategories.map((coin) => ({
+                          ...coin,
+                          channel: knowledge[0]?.["channel name"] || "",
+                          categories: Array.isArray(coin.categories)
+                            ? coin.categories
+                            : [],
+                          rpoints:
+                            processedData.coinDistribution.find(
+                              (c) => c.name === coin.coin
+                            )?.value || 0,
+                        }))
+                      : [],
                   }}
                   selectedChannels={[knowledge[0]?.["channel name"] || ""]}
+                  selectedModels={[]}
                 />
               </div>
             </div>

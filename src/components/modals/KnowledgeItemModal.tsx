@@ -23,7 +23,7 @@ export function KnowledgeItemModal({ item, onClose }: KnowledgeItemModalProps) {
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
-          className="absolute inset-0 bg-black/50 backdrop-blur-sm"
+          className="absolute inset-0 bg-black/80 backdrop-blur-sm"
           onClick={onClose}
         />
         <motion.div
@@ -31,19 +31,19 @@ export function KnowledgeItemModal({ item, onClose }: KnowledgeItemModalProps) {
           animate={{ y: 0 }}
           exit={{ y: "100%" }}
           transition={{ type: "spring", damping: 25, stiffness: 200 }}
-          className="absolute inset-x-0 bottom-0 h-[80vh] bg-gradient-to-b from-gray-900/95 to-gray-800/95 backdrop-blur-xl shadow-2xl rounded-t-xl"
+          className="absolute inset-x-0 bottom-0 h-[80vh] bg-black/40 backdrop-blur-xl shadow-2xl rounded-t-xl border border-green-500/20"
         >
-          <div className="sticky top-0 z-50 bg-gray-900/80 backdrop-blur-xl border-b border-gray-800/50 rounded-t-xl">
+          <div className="sticky top-0 z-50 bg-black/40 backdrop-blur-xl border-b border-green-500/20 rounded-t-xl">
             <div className="flex items-center justify-between p-4">
               <div>
-                <h2 className="text-lg font-semibold text-gray-200">
+                <h2 className="text-lg font-semibold text-green-200">
                   {item.video_title}
                 </h2>
                 <div className="flex items-center gap-2 mt-1">
-                  <span className="text-sm text-gray-400">
+                  <span className="text-sm text-green-400">
                     {item["channel name"]}
                   </span>
-                  <span className="text-sm text-gray-500">•</span>
+                  <span className="text-sm text-green-500/50">•</span>
                   <span className="text-sm text-gray-400">
                     {new Date(item.date).toLocaleDateString()}
                   </span>
@@ -52,21 +52,21 @@ export function KnowledgeItemModal({ item, onClose }: KnowledgeItemModalProps) {
               <div className="flex items-center gap-2">
                 <button
                   onClick={() => setShowVideo(true)}
-                  className="px-3 py-1.5 text-sm bg-blue-500/20 text-blue-300 rounded-lg hover:bg-blue-500/30 transition-colors"
+                  className="px-3 py-1.5 text-sm bg-green-500/20 text-green-300 rounded-lg hover:bg-green-500/30 transition-colors border border-green-500/20"
                 >
                   Watch Video
                 </button>
                 <button
                   onClick={() => setShowStats(true)}
-                  className="px-3 py-1.5 text-sm bg-blue-500/20 text-blue-300 rounded-lg hover:bg-blue-500/30 transition-colors"
+                  className="px-3 py-1.5 text-sm bg-green-500/20 text-green-300 rounded-lg hover:bg-green-500/30 transition-colors border border-green-500/20"
                 >
                   View Stats
                 </button>
                 <button
                   onClick={onClose}
-                  className="p-2 hover:bg-gray-800/50 rounded-lg transition-colors"
+                  className="p-2 hover:bg-green-500/10 rounded-lg transition-colors"
                 >
-                  <X className="w-5 h-5 text-gray-400" />
+                  <X className="w-5 h-5 text-gray-400 hover:text-green-400" />
                 </button>
               </div>
             </div>
