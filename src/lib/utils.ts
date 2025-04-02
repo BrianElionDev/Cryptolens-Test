@@ -29,10 +29,14 @@ export function formatPercentage(value: number): string {
   return formatted;
 }
 
-export function formatNumber(value: number | undefined): string {
+export function formatNumber(
+  value: number | undefined,
+  format: "compact" | "default" = "default"
+): string {
   if (value === undefined || value === null) return "0";
 
   return new Intl.NumberFormat("en-US", {
     maximumFractionDigits: 2,
+    notation: format === "compact" ? "compact" : "standard",
   }).format(value);
 }
