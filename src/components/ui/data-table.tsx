@@ -196,13 +196,13 @@ export function DataTable<TData, TValue>({
           }
           @keyframes glow {
             0% {
-              box-shadow: 0 0 0 rgba(59, 130, 246, 0);
+              box-shadow: 0 0 0 rgba(34, 197, 94, 0);
             }
             20% {
-              box-shadow: 0 0 8px rgba(59, 130, 246, 0.6);
+              box-shadow: 0 0 8px rgba(34, 197, 94, 0.6);
             }
             100% {
-              box-shadow: 0 0 0 rgba(59, 130, 246, 0);
+              box-shadow: 0 0 0 rgba(34, 197, 94, 0);
             }
           }
         `}</style>
@@ -251,7 +251,7 @@ export function DataTable<TData, TValue>({
               return (
                 <tr
                   key={row.id}
-                  className="hover:bg-blue-500/5 transition-colors cursor-pointer bg-gray-900/40"
+                  className="hover:bg-green-500/5 transition-colors cursor-pointer bg-black/30 backdrop-filter backdrop-blur-sm"
                   onClick={() => onRowClick?.(row.original)}
                 >
                   {row.getVisibleCells().map((cell) => {
@@ -260,7 +260,7 @@ export function DataTable<TData, TValue>({
                       <td
                         key={cell.id}
                         style={{ width }}
-                        className="py-5 px-4 whitespace-nowrap border-t border-gray-800/50"
+                        className="py-5 px-4 whitespace-nowrap border-t border-green-900/20"
                       >
                         <CellContent cell={cell} rowId={row.id} />
                       </td>
@@ -276,20 +276,20 @@ export function DataTable<TData, TValue>({
   }
 
   return (
-    <div className="rounded-md border">
+    <div className="rounded-md border border-green-900/30 glassmorphic-light">
       <style jsx global>{`
         .glow-change {
           animation: glow 2s ease-out;
         }
         @keyframes glow {
           0% {
-            box-shadow: 0 0 0 rgba(59, 130, 246, 0);
+            box-shadow: 0 0 0 rgba(34, 197, 94, 0);
           }
           20% {
-            box-shadow: 0 0 8px rgba(59, 130, 246, 0.6);
+            box-shadow: 0 0 8px rgba(34, 197, 94, 0.6);
           }
           100% {
-            box-shadow: 0 0 0 rgba(59, 130, 246, 0);
+            box-shadow: 0 0 0 rgba(34, 197, 94, 0);
           }
         }
       `}</style>

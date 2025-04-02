@@ -185,103 +185,97 @@ export function AnalyticsClient({ initialData }: AnalyticsClientProps) {
   // Loading state
   if (isLoading) {
     return (
-      <div className="min-h-screen pt-24 bg-gradient-to-br from-gray-900 via-blue-900/50 to-gray-900">
-        <div className="container mx-auto px-4 2xl:px-0 max-w-[1400px] space-y-4">
-          <div className="flex items-center justify-center p-12">
-            <div className="w-8 h-8 border-2 border-blue-500/20 border-t-blue-500 rounded-full animate-spin" />
-          </div>
-        </div>
+      <div className="min-h-[600px] flex items-center justify-center">
+        <div className="w-8 h-8 border-2 border-purple-500/20 border-t-purple-500 rounded-full animate-spin" />
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen pt-24 bg-gradient-to-br from-gray-900 via-blue-900/50 to-gray-900">
-      <div className="container mx-auto px-4 2xl:px-0 max-w-[1400px] space-y-4">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-4">
-            <div className="p-3 rounded-xl bg-blue-500/10 border border-blue-500/20">
-              <BarChart3 className="w-6 h-6 text-blue-400" />
-            </div>
-            <div>
-              <h1 className="text-2xl font-semibold text-gray-100">
-                Market Analytics
-              </h1>
-              <p className="text-sm text-gray-400">
-                Real-time insights from crypto influencers
-              </p>
-            </div>
+    <div className="container mx-auto px-4 2xl:px-0 max-w-[1400px] space-y-6">
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-4">
+          <div className="p-3 rounded-xl bg-purple-500/10 border border-purple-500/20">
+            <BarChart3 className="w-6 h-6 text-purple-400" />
           </div>
-          <div className="flex items-center gap-3">
-            <div className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-emerald-500/10 border border-emerald-500/20">
-              <TrendingUp className="w-4 h-4 text-emerald-400" />
-              <span className="text-sm font-medium text-emerald-400">
-                Live Data
-              </span>
-            </div>
-            <div className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-purple-500/10 border border-purple-500/20">
-              <Zap className="w-4 h-4 text-purple-400" />
-              <span className="text-sm font-medium text-purple-400">
-                AI-Powered
-              </span>
-            </div>
+          <div>
+            <h1 className="text-2xl font-semibold text-purple-100">
+              Market Analytics
+            </h1>
+            <p className="text-sm text-gray-400">
+              Real-time insights from crypto influencers
+            </p>
           </div>
         </div>
-
-        {/* Channel and Model Selectors */}
-        <div className="flex justify-end gap-2 mb-4">
-          <ModelSelector
-            models={processedData.models}
-            selectedModels={selectedModels}
-            onModelsChange={setSelectedModels}
-          />
-          <ChannelSelector
-            channels={processedData.channels}
-            selectedChannels={selectedChannels}
-            onChannelsChange={setSelectedChannels}
-          />
+        <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-blue-500/10 border border-blue-500/20">
+            <TrendingUp className="w-4 h-4 text-blue-400" />
+            <span className="text-sm font-medium text-blue-400">Live Data</span>
+          </div>
+          <div className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-amber-500/10 border border-amber-500/20">
+            <Zap className="w-4 h-4 text-amber-400" />
+            <span className="text-sm font-medium text-amber-400">
+              AI-Powered
+            </span>
+          </div>
         </div>
-
-        <AnalyticsTabs activeTab={activeTab} onTabChange={setActiveTab} />
-
-        {/* Content */}
-        <AnimatePresence mode="wait">
-          <motion.div
-            key={activeTab}
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -20 }}
-            transition={{ duration: 0.2 }}
-          >
-            {activeTab === "market" && (
-              <CombinedMarketTable
-                processedData={processedData}
-                selectedChannels={selectedChannels}
-                selectedModels={selectedModels}
-                onCoinSelect={() => {}}
-              />
-            )}
-            {activeTab === "graphs" && (
-              <GraphsTab
-                processedData={{
-                  projectDistribution: processedData.projectDistribution,
-                  projectTrends: processedData.projectTrends,
-                  coinCategories: processedData.coinCategories,
-                }}
-                selectedChannels={selectedChannels}
-                selectedModels={selectedModels}
-              />
-            )}
-            {activeTab === "categories" && (
-              <CategoriesTab
-                processedData={processedData}
-                selectedChannels={selectedChannels}
-                selectedModels={selectedModels}
-              />
-            )}
-          </motion.div>
-        </AnimatePresence>
       </div>
+
+      {/* Channel and Model Selectors */}
+      <div className="flex justify-end gap-2 mb-4">
+        <ModelSelector
+          models={processedData.models}
+          selectedModels={selectedModels}
+          onModelsChange={setSelectedModels}
+        />
+        <ChannelSelector
+          channels={processedData.channels}
+          selectedChannels={selectedChannels}
+          onChannelsChange={setSelectedChannels}
+        />
+      </div>
+
+      <AnalyticsTabs activeTab={activeTab} onTabChange={setActiveTab} />
+
+      {/* Content */}
+      <AnimatePresence mode="wait">
+        <motion.div
+          key={activeTab}
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          exit={{ opacity: 0, y: -20 }}
+          transition={{ duration: 0.2 }}
+        >
+          {activeTab === "market" && (
+            <CombinedMarketTable
+              processedData={processedData}
+              selectedChannels={selectedChannels}
+              selectedModels={selectedModels}
+              onCoinSelect={() => {}}
+            />
+          )}
+          {activeTab === "graphs" && (
+            <GraphsTab
+              processedData={{
+                projectDistribution: processedData.projectDistribution || [],
+                projectTrends: processedData.projectTrends || new Map(),
+                coinCategories: Array.isArray(processedData.coinCategories)
+                  ? processedData.coinCategories
+                  : [],
+              }}
+              selectedChannels={selectedChannels}
+              selectedModels={selectedModels}
+            />
+          )}
+          {activeTab === "categories" && (
+            <CategoriesTab
+              processedData={processedData}
+              selectedChannels={selectedChannels}
+              selectedModels={selectedModels}
+            />
+          )}
+        </motion.div>
+      </AnimatePresence>
     </div>
   );
 }

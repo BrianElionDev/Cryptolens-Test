@@ -49,17 +49,17 @@ export default function KnowledgeBase({ items }: KnowledgeBaseProps) {
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, y: -20 }}
               transition={{ duration: 0.2 }}
-              className="group relative overflow-hidden rounded-xl bg-gradient-to-r from-blue-900/20 via-purple-900/20 to-pink-900/20 border border-blue-500/20 backdrop-blur-sm p-4 hover:border-blue-500/40 transition-colors cursor-pointer"
+              className="group relative overflow-hidden rounded-xl glassmorphic-light glass-border p-4 hover:glass-glow transition-all duration-300 cursor-pointer"
               onClick={() => setSelectedItem(item)}
             >
               <div className="space-y-3">
                 {/* Channel Name */}
-                <div className="text-sm font-medium text-blue-400">
+                <div className="text-sm font-medium text-green-400">
                   {item["channel name"]}
                 </div>
 
                 {/* Title */}
-                <h3 className="text-base font-semibold text-gray-200 line-clamp-2 group-hover:text-blue-300 transition-colors">
+                <h3 className="text-base font-semibold text-gray-200 line-clamp-2 group-hover:text-green-300 transition-colors">
                   {item.video_title}
                 </h3>
 
@@ -74,7 +74,7 @@ export default function KnowledgeBase({ items }: KnowledgeBaseProps) {
                         e.stopPropagation();
                         setActiveVideo(item.link);
                       }}
-                      className="flex items-center gap-1.5 px-2 py-1 text-sm text-blue-400 hover:text-blue-300 transition-colors bg-blue-500/10 rounded-md hover:bg-blue-500/20"
+                      className="flex items-center gap-1.5 px-2 py-1 text-sm text-green-400 hover:text-green-300 transition-colors bg-green-500/10 rounded-md hover:bg-green-500/20"
                     >
                       <PlayCircle className="w-4 h-4" />
                       <span>Watch</span>
@@ -83,7 +83,7 @@ export default function KnowledgeBase({ items }: KnowledgeBaseProps) {
                     <div
                       className={`px-2 py-1 rounded-md text-xs font-medium ${
                         item.video_type === "video"
-                          ? "bg-green-500/10 text-green-400 border border-green-500/20"
+                          ? "bg-blue-500/10 text-blue-400 border border-blue-500/20"
                           : "bg-purple-500/10 text-purple-400 border border-purple-500/20"
                       }`}
                     >
@@ -91,7 +91,7 @@ export default function KnowledgeBase({ items }: KnowledgeBaseProps) {
                     </div>
                   </div>
                   {/* Coin Count */}
-                  <div className="text-sm text-gray-400 bg-gray-900/40 px-2 py-1 rounded-md shrink-0">
+                  <div className="text-sm text-blue-600 bg-black/30 backdrop-blur-sm px-2 py-1 rounded-md shrink-0">
                     {validCoins} coins
                   </div>
                 </div>

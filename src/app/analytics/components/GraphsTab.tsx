@@ -33,9 +33,13 @@ interface GraphsTabProps {
 }
 
 export const GraphsTab = ({
-  processedData,
-  selectedChannels,
-  selectedModels,
+  processedData = {
+    projectDistribution: [],
+    projectTrends: new Map(),
+    coinCategories: [],
+  },
+  selectedChannels = [],
+  selectedModels = [],
 }: GraphsTabProps) => {
   const [selectedCoin, setSelectedCoin] = useState<string>("");
   const [timeframe, setTimeframe] = useState<"all" | "30" | "7">("all");
@@ -46,6 +50,14 @@ export const GraphsTab = ({
   }, [selectedChannels, selectedModels]);
 
   const top10Coins = useMemo(() => {
+    if (
+      !processedData ||
+      !processedData.projectDistribution ||
+      !processedData.coinCategories
+    ) {
+      return [];
+    }
+
     const filtered = processedData.projectDistribution
       .filter((project) => {
         if (selectedChannels.length === 0 && selectedModels.length === 0) {
@@ -75,7 +87,8 @@ export const GraphsTab = ({
   }, [processedData, selectedChannels, selectedModels, selectedCoin]);
 
   const chartData = useMemo(() => {
-    if (!selectedCoin) return [];
+    if (!selectedCoin || !processedData || !processedData.projectTrends)
+      return [];
 
     const trendData =
       Array.from(processedData.projectTrends.entries()).find(
@@ -104,6 +117,8 @@ export const GraphsTab = ({
     }
 
     // Get data only for selected channels and models
+    if (!processedData.coinCategories) return [];
+
     const relevantEntries = processedData.coinCategories.filter((entry) => {
       const coinMatch = entry.coin === selectedCoin;
       const channelMatch =
@@ -127,8 +142,7 @@ export const GraphsTab = ({
         rpoints: Math.round(d.rpoints * 100) / 100,
       }));
   }, [
-    processedData.projectTrends,
-    processedData.coinCategories,
+    processedData,
     selectedCoin,
     selectedChannels,
     selectedModels,

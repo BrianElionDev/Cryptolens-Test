@@ -77,9 +77,9 @@ export function KnowledgeFilter({
         >
           Models
           {selectedModels.includes("all") ? (
-            <span className="ml-2 text-purple-400">(All)</span>
+            <span className="ml-2 text-green-400">(All)</span>
           ) : selectedModels.length > 0 ? (
-            <span className="ml-2 text-purple-400">
+            <span className="ml-2 text-green-400">
               ({selectedModels.length})
             </span>
           ) : null}
@@ -91,7 +91,7 @@ export function KnowledgeFilter({
             variant="ghost"
             size="sm"
             onClick={handleSelectAll}
-            className="text-xs text-purple-400 hover:text-purple-300"
+            className="text-xs text-green-400 hover:text-green-300"
           >
             Select All
           </Button>
@@ -99,7 +99,7 @@ export function KnowledgeFilter({
             variant="ghost"
             size="sm"
             onClick={handleDeselectAll}
-            className="text-xs text-purple-400 hover:text-purple-300"
+            className="text-xs text-green-400 hover:text-green-300"
           >
             Deselect All
           </Button>
@@ -119,7 +119,7 @@ export function KnowledgeFilter({
                   onCheckedChange={(checked) =>
                     handleModelSelection(!!checked, model as string)
                   }
-                  className="mr-2 border-gray-500 data-[state=checked]:bg-purple-500 data-[state=checked]:border-purple-500"
+                  className="mr-2 border-gray-500 data-[state=checked]:bg-green-500 data-[state=checked]:border-green-500"
                 />
                 <span className="text-sm text-gray-200 group-hover:text-gray-100">
                   {model}
@@ -140,7 +140,7 @@ export function KnowledgeFilter({
           <Button
             size="sm"
             onClick={handleApply}
-            className="bg-purple-500/20 text-purple-300 hover:bg-purple-500/30"
+            className="bg-green-500/20 text-green-300 hover:bg-green-500/30"
           >
             Apply
           </Button>

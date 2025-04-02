@@ -15,13 +15,32 @@ interface CategoriesTabProps {
 }
 
 export const CategoriesTab = ({
-  processedData,
-  selectedChannels,
-  selectedModels,
+  processedData = {
+    categoryDistribution: [],
+    coinCategories: [],
+  },
+  selectedChannels = [],
+  selectedModels = [],
 }: CategoriesTabProps) => {
-  const filteredCategories = processedData.categoryDistribution
-    .filter((cat) =>
-      processedData.coinCategories.some((coin) => {
+  // Add null checks for processed data
+  const categoryDistribution = processedData?.categoryDistribution || [];
+  const coinCategories = processedData?.coinCategories || [];
+
+  const filteredCategories = categoryDistribution
+    .filter((cat) => {
+      if (
+        !coinCategories ||
+        !Array.isArray(coinCategories) ||
+        coinCategories.length === 0
+      ) {
+        return false;
+      }
+
+      return coinCategories.some((coin) => {
+        if (!coin || !coin.categories || !Array.isArray(coin.categories)) {
+          return false;
+        }
+
         const channelMatch =
           selectedChannels.length === 0 ||
           selectedChannels.includes(coin.channel);
@@ -32,8 +51,8 @@ export const CategoriesTab = ({
           (selectedModels.includes("all") && coin.model);
 
         return channelMatch && modelMatch && coin.categories.includes(cat.name);
-      })
-    )
+      });
+    })
     .sort((a, b) => b.value - a.value);
 
   return (

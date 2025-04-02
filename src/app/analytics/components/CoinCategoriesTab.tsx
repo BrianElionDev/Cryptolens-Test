@@ -8,7 +8,10 @@ interface CoinCategoriesTabProps {
 }
 
 export const CoinCategoriesTab = ({
-  processedData,
+  processedData = {
+    projectDistribution: [],
+    coinCategories: [],
+  },
 }: CoinCategoriesTabProps) => {
   const [search, setSearch] = useState("");
   const [sortBy, setSortBy] = useState<"name" | "categories" | "rpoints">(
@@ -17,15 +20,37 @@ export const CoinCategoriesTab = ({
   const [sortOrder, setSortOrder] = useState<"asc" | "desc">("desc");
 
   const filteredAndSortedData = useMemo(() => {
+    if (
+      !processedData.coinCategories ||
+      !Array.isArray(processedData.coinCategories)
+    ) {
+      return [];
+    }
+
     return processedData.coinCategories
-      .filter(
-        (coin) =>
-          coin.coin.toLowerCase().includes(search.toLowerCase()) ||
-          coin.categories.some((cat) =>
-            cat.toLowerCase().includes(search.toLowerCase())
-          )
-      )
+      .filter((coin) => {
+        if (!coin || !coin.coin) return false;
+
+        const nameMatch = coin.coin
+          .toLowerCase()
+          .includes(search.toLowerCase());
+        if (nameMatch) return true;
+
+        if (!coin.categories || !Array.isArray(coin.categories)) return false;
+
+        return coin.categories.some((cat) => {
+          if (!cat) return false;
+          return cat.toLowerCase().includes(search.toLowerCase());
+        });
+      })
       .sort((a, b) => {
+        if (
+          !processedData.projectDistribution ||
+          !Array.isArray(processedData.projectDistribution)
+        ) {
+          return 0;
+        }
+
         const aPoints =
           processedData.projectDistribution.find((p) => p.name === a.coin)
             ?.value || 0;
@@ -40,8 +65,8 @@ export const CoinCategoriesTab = ({
               : b.coin.localeCompare(a.coin);
           case "categories":
             return sortOrder === "asc"
-              ? a.categories.length - b.categories.length
-              : b.categories.length - a.categories.length;
+              ? (a.categories?.length || 0) - (b.categories?.length || 0)
+              : (b.categories?.length || 0) - (a.categories?.length || 0);
           case "rpoints":
             return sortOrder === "asc" ? aPoints - bPoints : bPoints - aPoints;
           default:

@@ -24,6 +24,7 @@ export interface Project {
   total_count: number;
   category: string[];
   coingecko_matched?: boolean;
+  cmc_matched?: boolean;
   coingecko_data?: {
     id: string;
     symbol: string;
