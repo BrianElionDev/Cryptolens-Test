@@ -15,8 +15,8 @@ export async function GET() {
     // Query distinct channels from knowledge table
     const { data, error } = await supabase
       .from("knowledge")
-      .select("channel name")
-      .order("channel name")
+      .select(`"channel name"`)
+      .order(`"channel name"`)
       .limit(100);
 
     if (error) {
