@@ -19,8 +19,29 @@ interface CoinGeckoData {
   name: string;
 }
 
+interface CMCData {
+  id: string;
+  name: string;
+  symbol: string;
+  price: number;
+  market_cap: number;
+  volume_24h: number;
+  percent_change_24h: number;
+  percent_change_7d: number;
+  percent_change_1h: number;
+  cmc_id: number;
+  rank: number;
+  circulating_supply: number;
+  total_supply: number;
+  max_supply: number;
+  market_cap_dominance: number;
+  fully_diluted_market_cap: number;
+  image: string;
+}
+
 interface CoinGeckoContextType {
   topCoins: CoinGeckoData[];
+  cmcCoins: Record<string, CMCData>;
   isLoading: boolean;
   error: Error | null;
   refreshData: () => Promise<void>;
@@ -33,11 +54,16 @@ const CoinGeckoContext = createContext<CoinGeckoContextType | undefined>(
 
 export function CoinGeckoProvider({ children }: { children: React.ReactNode }) {
   const [topCoins, setTopCoins] = useState<CoinGeckoData[]>([]);
+  const [cmcCoins, setCmcCoins] = useState<Record<string, CMCData>>({});
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<Error | null>(null);
   const [lastFetchTime, setLastFetchTime] = useState(0);
+  const [lastCmcFetchTime, setLastCmcFetchTime] = useState(0);
   const matchCache = useRef<
-    Map<string, { matched: boolean; data?: CoinGeckoData }>
+    Map<
+      string,
+      { matched: boolean; data?: CoinGeckoData | CMCData; source?: string }
+    >
   >(new Map());
 
   // Move arrays into useMemo
@@ -96,8 +122,58 @@ export function CoinGeckoProvider({ children }: { children: React.ReactNode }) {
     []
   );
 
+  // Fetch CMC data
+  const fetchCmcData = useCallback(async () => {
+    // Only fetch if it's been more than 5 minutes since last fetch
+    if (
+      Date.now() - lastCmcFetchTime < 5 * 60 * 1000 &&
+      Object.keys(cmcCoins).length > 0
+    ) {
+      console.debug("Using cached CMC data", {
+        cachedCoins: Object.keys(cmcCoins).length,
+        lastFetchAge: (Date.now() - lastCmcFetchTime) / 1000,
+      });
+      return;
+    }
+
+    try {
+      console.debug("Fetching fresh coin data from CoinMarketCap...");
+      const response = await fetch("/api/coinmarketcap", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          fallbackMode: true,
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error(`Failed to fetch CMC data: ${response.statusText}`);
+      }
+
+      const responseData = await response.json();
+
+      if (responseData.data && typeof responseData.data === "object") {
+        console.debug("Successfully fetched CMC data:", {
+          coinsReceived: Object.keys(responseData.data).length,
+          firstCoin:
+            Object.values(responseData.data as Record<string, CMCData>)[0]
+              ?.name || "none",
+        });
+
+        setCmcCoins(responseData.data as Record<string, CMCData>);
+        setLastCmcFetchTime(Date.now());
+      } else {
+        console.error("Invalid CMC data format:", responseData);
+      }
+    } catch (err) {
+      console.error("Failed to fetch CMC data:", err);
+      // Don't show a toast for CMC errors to avoid overwhelming the user
+    }
+  }, [cmcCoins, lastCmcFetchTime]);
+
   const matchCoins = useCallback(
     async (projects: Project[]) => {
+      // Ensure we have CoinGecko and CMC data
       if (!topCoins.length) return projects;
 
       return Promise.all(
@@ -111,8 +187,11 @@ export function CoinGeckoProvider({ children }: { children: React.ReactNode }) {
           if (cached) {
             return {
               ...project,
-              coingecko_matched: cached.matched,
-              coingecko_data: cached.data,
+              coingecko_matched: cached.source === "coingecko",
+              cmc_matched: cached.source === "cmc",
+              coingecko_data:
+                cached.source === "coingecko" ? cached.data : undefined,
+              cmc_data: cached.source === "cmc" ? cached.data : undefined,
             };
           }
 
@@ -147,7 +226,7 @@ export function CoinGeckoProvider({ children }: { children: React.ReactNode }) {
             return { ...project, coingecko_matched: false };
           }
 
-          // Try to find matching coin
+          // Try to find matching coin in CoinGecko
           const matchedCoin = topCoins.find((coin) => {
             const symbol = coin.symbol.toLowerCase().trim();
             const name = coin.name.toLowerCase().trim();
@@ -164,11 +243,12 @@ export function CoinGeckoProvider({ children }: { children: React.ReactNode }) {
             );
           });
 
-          // Cache and return result
+          // If matched in CoinGecko, cache and return
           if (matchedCoin) {
             matchCache.current.set(projectName, {
               matched: true,
               data: matchedCoin,
+              source: "coingecko",
             });
             return {
               ...project,
@@ -177,80 +257,57 @@ export function CoinGeckoProvider({ children }: { children: React.ReactNode }) {
             };
           }
 
-          // If no CoinGecko match, try CMC match
-          const cmcMatch = await fetch("/api/coinmarketcap", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-              symbols: [projectName],
-              fallbackMode: true,
-            }),
-          }).then((res) => res.json());
-
-          if (cmcMatch.data && Object.keys(cmcMatch.data).length > 0) {
-            // Apply strict matching for CMC
-            const cmcData = cmcMatch.data[projectName];
-            const cmcSymbol = cmcData.symbol?.toLowerCase().trim();
-            const cmcName = cmcData.name?.toLowerCase().trim();
-
-            // Skip if the project name contains excluded terms
-            if (excludeTerms.some((term) => projectName.includes(term))) {
-              matchCache.current.set(projectName, { matched: false });
-              return { ...project, cmc_matched: false };
-            }
-
-            // Extract potential ticker if it exists ($XXX)
-            const tickerMatch = projectName.match(/\$([a-zA-Z0-9]+)/);
-            const ticker = tickerMatch ? tickerMatch[1].toLowerCase() : "";
-
-            // Remove ticker symbols and clean name
-            let cleanedName = project.coin_or_project
-              .replace(/\s*\(\$[^)]+\)/g, "")
-              .replace(/\$[a-zA-Z0-9]+/, "")
-              .toLowerCase()
-              .trim();
-
-            // Remove common prefixes/suffixes
-            cleanTerms.forEach((term) => {
-              cleanedName = cleanedName
-                .replace(new RegExp(`^${term}\\s+`, "i"), "")
-                .replace(new RegExp(`\\s+${term}$`, "i"), "")
-                .trim();
-            });
-
-            // Skip if cleaned name is too short or contains numbers
-            if (cleanedName.length < 2 || /\d/.test(cleanedName)) {
-              matchCache.current.set(projectName, { matched: false });
-              return { ...project, cmc_matched: false };
-            }
-
-            // Strict matching for CMC
-            const isStrictMatch =
-              (ticker && cmcSymbol === ticker) ||
-              cmcName === cleanedName ||
-              cmcSymbol === cleanedName ||
-              (cmcName.includes(cleanedName) && cleanedName.length > 3) ||
-              (cleanedName.includes(cmcName) && cmcName.length > 3);
-
-            if (isStrictMatch) {
-              matchCache.current.set(projectName, {
-                matched: true,
-                data: cmcData,
-              });
-              return {
-                ...project,
-                cmc_matched: true,
-                cmc_data: cmcData,
-              };
+          // If no CoinGecko match, try CMC match from our cache
+          // Look for ticker match first
+          let cmcMatch = null;
+          if (ticker) {
+            // Check exact ticker match
+            const tickerKey = ticker.toLowerCase();
+            if (cmcCoins[tickerKey]) {
+              cmcMatch = cmcCoins[tickerKey];
             }
           }
 
+          // If no ticker match, try name match
+          if (!cmcMatch) {
+            // Try to find by name
+            for (const key in cmcCoins) {
+              const coin = cmcCoins[key];
+              const coinName = coin.name.toLowerCase();
+              const coinSymbol = coin.symbol.toLowerCase();
+
+              if (
+                coinName === cleanedName ||
+                coinSymbol === cleanedName ||
+                (coinName.includes(cleanedName) && cleanedName.length > 3) ||
+                (cleanedName.includes(coinName) && coinName.length > 3)
+              ) {
+                cmcMatch = coin;
+                break;
+              }
+            }
+          }
+
+          if (cmcMatch) {
+            matchCache.current.set(projectName, {
+              matched: true,
+              data: cmcMatch,
+              source: "cmc",
+            });
+            return {
+              ...project,
+              cmc_matched: true,
+              cmc_data: cmcMatch,
+            };
+          }
+
+          // No match found
           matchCache.current.set(projectName, { matched: false });
           return { ...project, coingecko_matched: false, cmc_matched: false };
         })
       );
     },
-    [topCoins, excludeTerms, cleanTerms]
+    [topCoins, cmcCoins, excludeTerms, cleanTerms]
   );
 
   const fetchTopCoins = useCallback(async () => {
@@ -326,6 +383,9 @@ export function CoinGeckoProvider({ children }: { children: React.ReactNode }) {
 
       setTopCoins(allCoins);
       setLastFetchTime(Date.now());
+
+      // After fetching CoinGecko, fetch CMC data
+      await fetchCmcData();
     } catch (err) {
       console.error("Failed to fetch top coins:", err);
       const errorMessage =
@@ -344,7 +404,7 @@ export function CoinGeckoProvider({ children }: { children: React.ReactNode }) {
     } finally {
       setIsLoading(false);
     }
-  }, [topCoins.length, lastFetchTime]);
+  }, [topCoins.length, lastFetchTime, fetchCmcData]);
 
   // Initial fetch
   useEffect(() => {
@@ -362,6 +422,7 @@ export function CoinGeckoProvider({ children }: { children: React.ReactNode }) {
 
   const value = {
     topCoins,
+    cmcCoins,
     isLoading,
     error,
     refreshData: fetchTopCoins,

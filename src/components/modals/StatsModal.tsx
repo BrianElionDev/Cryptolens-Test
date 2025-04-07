@@ -10,6 +10,7 @@ import { useCoinGecko } from "@/contexts/CoinGeckoContext";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import Link from "next/link";
+import { useKnowledgeData } from "@/hooks/useCoinData";
 
 interface StatsModalProps {
   item: KnowledgeItem;
@@ -30,15 +31,30 @@ interface Project {
   };
 }
 
+interface CoinModel {
+  modelName: string;
+  rpoints: number;
+  count: number;
+}
+
+// Update the uniqueCoinsAcrossModels type
+interface UniqueCoin {
+  name: string;
+  models: CoinModel[];
+}
+
 export function StatsModal({ item, onClose }: StatsModalProps) {
   const [activeTab, setActiveTab] = useState<
-    "stats" | "summary" | "transcript"
+    "stats" | "summary" | "transcript" | "comparison"
   >("stats");
   const [searchQuery, setSearchQuery] = useState("");
   const [currentMatchIndex, setCurrentMatchIndex] = useState(-1);
   const [matchedProjects, setMatchedProjects] = useState<Project[]>([]);
+  const [modelComparisons, setModelComparisons] = useState<KnowledgeItem[]>([]);
+  const [isLoadingComparisons, setIsLoadingComparisons] = useState(false);
   const transcriptRef = useRef<HTMLDivElement>(null);
   const { topCoins, isLoading: isLoadingCoins, matchCoins } = useCoinGecko();
+  const { data: knowledgeItems } = useKnowledgeData();
 
   useEffect(() => {
     const matchProjects = async () => {
@@ -48,6 +64,93 @@ export function StatsModal({ item, onClose }: StatsModalProps) {
     };
     matchProjects();
   }, [topCoins, item.llm_answer.projects, isLoadingCoins, matchCoins]);
+
+  useEffect(() => {
+    const fetchModelComparisons = async () => {
+      if (!item.link || !knowledgeItems) return;
+
+      setIsLoadingComparisons(true);
+      try {
+        // Extract video ID from the link for more reliable matching
+        const getVideoId = (url: string) => {
+          if (!url) return "";
+          // YouTube URL patterns
+          const regExp =
+            /^.*(youtu.be\/|v\/|e\/|u\/\w+\/|embed\/|v=)([^#\&\?]*).*/;
+          const match = url.match(regExp);
+          return match && match[2].length === 11 ? match[2] : "";
+        };
+
+        const videoId = getVideoId(item.link);
+
+        if (!videoId) {
+          return;
+        }
+
+        // First - let's just see ALL items with matching video IDs
+        const itemsWithMatchingVideoIds = knowledgeItems.filter((k) => {
+          const kVideoId = getVideoId(k.link);
+          return kVideoId === videoId;
+        });
+
+        // Now apply our filters
+        const matchingVideos = itemsWithMatchingVideoIds.filter((k) => {
+          // Filter out only items with the same model name
+          if (k.model === item.model) {
+            return false;
+          }
+
+          return true;
+        });
+
+        // If we don't have models with matching links, at least use the current model
+        const modelsToUse = [...matchingVideos, item];
+
+        // Clear the model name counter to avoid adding numbers
+        const modelNameCounts: Record<string, number> = {};
+
+        // Make sure each model has a unique name
+        const transformedData: KnowledgeItem[] = modelsToUse.map(
+          (modelItem, index) => {
+            // Use the original model name as-is, but ensure it's unique
+            let modelName = modelItem.model || `Analysis ${index + 1}`;
+
+            // Keep track of model name occurrences to ensure uniqueness
+            modelNameCounts[modelName] = (modelNameCounts[modelName] || 0) + 1;
+
+            // Only add a suffix if there are duplicates
+            if (modelNameCounts[modelName] > 1) {
+              modelName = `${modelName} (${modelNameCounts[modelName]})`;
+            }
+
+            return {
+              ...modelItem,
+              model: modelName,
+            };
+          }
+        );
+
+        // Match coins for each model's projects
+        const matchedModelData = await Promise.all(
+          transformedData.map(async (modelItem) => ({
+            ...modelItem,
+            llm_answer: {
+              ...modelItem.llm_answer,
+              projects: await matchCoins(modelItem.llm_answer.projects),
+            },
+          }))
+        );
+
+        setModelComparisons(matchedModelData);
+      } catch {
+        // Silent error handling
+      } finally {
+        setIsLoadingComparisons(false);
+      }
+    };
+
+    fetchModelComparisons();
+  }, [item, matchCoins, knowledgeItems]);
 
   const validProjects = useMemo(() => {
     return matchedProjects;
@@ -268,6 +371,302 @@ export function StatsModal({ item, onClose }: StatsModalProps) {
     }
   };
 
+  const renderComparisonTab = () => {
+    if (isLoadingComparisons) {
+      return (
+        <div className="mt-4 flex flex-col items-center justify-center p-8 space-y-4">
+          <div className="w-8 h-8 border-2 border-green-500/20 border-t-green-500 rounded-full animate-spin" />
+          <p className="text-sm text-gray-400">Loading model comparisons...</p>
+        </div>
+      );
+    }
+
+    // If we have no models at all, use the current model and create one alternate model
+    if (modelComparisons.length === 0 && item.llm_answer?.projects) {
+      // Create two models with the same data but different names
+      const currentModelName = item.model || "Unknown Model";
+
+      // Create a synthetic comparison only if needed
+      const syntheticModels: KnowledgeItem[] = [
+        {
+          ...item,
+          model: currentModelName,
+        },
+      ];
+
+      setModelComparisons(syntheticModels);
+      return (
+        <div className="mt-4 flex flex-col items-center justify-center p-8 space-y-4">
+          <div className="w-8 h-8 border-2 border-green-500/20 border-t-green-500 rounded-full animate-spin" />
+          <p className="text-sm text-gray-400">Creating comparison view...</p>
+        </div>
+      );
+    }
+
+    // Filter out items that don't have projects data
+    const validModelComparisons = modelComparisons.filter((model) => {
+      // More detailed check
+      const hasLlmAnswer = !!model.llm_answer;
+      const hasProjects =
+        !!model.llm_answer?.projects && model.llm_answer.projects.length > 0;
+      const hasMatchedCoins =
+        model.llm_answer?.projects?.some((p) => p.coingecko_matched) || false;
+
+      // Debug detailed reasons for exclusion
+      const isValid = hasLlmAnswer && hasProjects && hasMatchedCoins;
+      if (!isValid) {
+        console.log(
+          `Model ${model.model} excluded because:`,
+          !hasLlmAnswer
+            ? "no llm_answer"
+            : !hasProjects
+            ? "no projects"
+            : "no matched coins"
+        );
+      }
+
+      return isValid;
+    });
+
+    // If we have at least 1 valid model with data, proceed with comparison
+    // even if we only have one model (we'll show its stats alone)
+    if (validModelComparisons.length === 0) {
+      return (
+        <div className="flex flex-col items-center justify-center p-12 text-center">
+          <div className="w-16 h-16 mb-4 text-gray-500">
+            <svg
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="1.5"
+            >
+              <path d="M10 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2m7-2a9 9 0 11-18 0 9 9 0 0118 0z" />
+            </svg>
+          </div>
+          <h3 className="text-lg font-medium text-gray-400 mb-2">
+            No Model Comparisons Available
+          </h3>
+          <p className="text-gray-500 max-w-sm">
+            No valid models with matched coins were found for this video.
+          </p>
+
+          <div className="mt-4 text-xs text-gray-500">
+            Total models found: {modelComparisons.length} / Valid:{" "}
+            {validModelComparisons.length}
+          </div>
+
+          <div className="mt-6 p-4 rounded-lg bg-gray-900/40 border border-gray-700/50 max-w-sm">
+            <p className="text-sm text-gray-300">
+              To compare different models, you need to analyze this video with
+              multiple AI models or run the analysis multiple times.
+            </p>
+          </div>
+        </div>
+      );
+    }
+
+    // Find unique coins across valid models
+    const validUniqueCoins = (() => {
+      const coinMap = new Map<string, UniqueCoin>();
+
+      validModelComparisons.forEach((modelItem) => {
+        modelItem.llm_answer.projects
+          .filter((p) => p.coingecko_matched)
+          .forEach((project) => {
+            if (!coinMap.has(project.coin_or_project)) {
+              coinMap.set(project.coin_or_project, {
+                name: project.coin_or_project,
+                models: [],
+              });
+            }
+
+            const coinEntry = coinMap.get(project.coin_or_project);
+            if (coinEntry) {
+              coinEntry.models.push({
+                modelName: modelItem.model || "Unknown",
+                rpoints: project.rpoints,
+                count: project.total_count,
+              });
+            }
+          });
+      });
+
+      return Array.from(coinMap.values()).sort(
+        (a: UniqueCoin, b: UniqueCoin) => {
+          const getRpoints = (model: CoinModel) => model.rpoints;
+          const maxRpointsA = Math.max(...a.models.map(getRpoints));
+          const maxRpointsB = Math.max(...b.models.map(getRpoints));
+          return maxRpointsB - maxRpointsA;
+        }
+      );
+    })();
+
+    return (
+      <div className="space-y-8">
+        {/* Model Summary Table */}
+        <div className="p-4 rounded-xl bg-gray-900/40 border border-gray-700/50">
+          <h3 className="text-lg font-medium text-green-200 mb-4">
+            Model Comparison Summary
+          </h3>
+          <div className="overflow-x-auto">
+            <table className="min-w-full divide-y divide-green-500/20 backdrop-blur-sm">
+              <thead className="bg-black/20">
+                <tr>
+                  <th className="px-4 py-2 text-left text-xs font-medium text-green-200 uppercase tracking-wider">
+                    Model Name
+                  </th>
+                  <th className="px-4 py-2 text-left text-xs font-medium text-green-200 uppercase tracking-wider">
+                    Total Coins
+                  </th>
+                  <th className="px-4 py-2 text-left text-xs font-medium text-green-200 uppercase tracking-wider">
+                    Total R-Points
+                  </th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-green-500/20 bg-black/10">
+                {validModelComparisons.map((model, idx) => {
+                  return (
+                    <tr
+                      key={idx}
+                      className="hover:bg-green-500/5 transition-all"
+                    >
+                      <td className="px-4 py-2 text-sm font-medium text-cyan-200">
+                        {model.model || `Model ${idx + 1}`}
+                        {model.model === item.model && (
+                          <span className="ml-1 px-1.5 py-0.5 text-xs bg-green-900/50 text-green-300 rounded-full border border-green-500/20">
+                            current
+                          </span>
+                        )}
+                      </td>
+                      <td className="px-4 py-2 text-sm">
+                        {
+                          model.llm_answer.projects.filter(
+                            (p) => p.coingecko_matched
+                          ).length
+                        }
+                      </td>
+                      <td className="px-4 py-2 text-sm">
+                        {model.llm_answer.total_rpoints ||
+                          model.llm_answer.projects.reduce(
+                            (sum, p) => sum + (p.rpoints || 0),
+                            0
+                          )}
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        {validModelComparisons.length > 1 && validUniqueCoins.length > 0 && (
+          <div className="p-4 rounded-xl bg-gray-900/40 border border-gray-700/50">
+            <h3 className="text-lg font-medium text-green-200 mb-4">
+              Detailed Coin Comparison
+            </h3>
+            <div className="overflow-x-auto">
+              <table className="min-w-full divide-y divide-green-500/20 backdrop-blur-sm">
+                <thead className="bg-black/20">
+                  <tr>
+                    <th className="px-4 py-2 text-left text-xs font-medium text-green-200 uppercase tracking-wider">
+                      Coin Name
+                    </th>
+                    {validModelComparisons.map((model, idx) => {
+                      return (
+                        <th
+                          key={idx}
+                          colSpan={2}
+                          className="px-4 py-1 text-center text-xs font-medium text-green-200 uppercase tracking-wider border-l border-green-500/20"
+                        >
+                          {model.model || `Model ${idx + 1}`}
+                          {model.model === item.model && (
+                            <span className="ml-1 px-1.5 py-0.5 text-xs bg-green-900/50 text-green-300 rounded-full border border-green-500/20">
+                              current
+                            </span>
+                          )}
+                        </th>
+                      );
+                    })}
+                  </tr>
+                  <tr>
+                    <th className="px-4 py-1"></th>
+                    {validModelComparisons.map((_, idx) => (
+                      <React.Fragment key={`header-subcolumns-${idx}`}>
+                        <th className="px-2 py-1 text-center text-xs font-medium text-green-200 uppercase tracking-wider border-l border-green-500/20">
+                          R-Points
+                        </th>
+                        <th className="px-2 py-1 text-center text-xs font-medium text-green-200 uppercase tracking-wider">
+                          Count
+                        </th>
+                      </React.Fragment>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-green-500/20 bg-black/10">
+                  {validUniqueCoins.map((coin, idx) => (
+                    <tr
+                      key={idx}
+                      className="hover:bg-green-500/5 transition-all"
+                    >
+                      <td className="px-4 py-2 text-sm font-medium text-cyan-200">
+                        {coin.name}
+                      </td>
+                      {validModelComparisons.map((model, modelIdx) => {
+                        const modelData = coin.models.find(
+                          (m) => m.modelName === model.model
+                        );
+                        return (
+                          <React.Fragment key={`data-${idx}-${modelIdx}`}>
+                            <td className="px-2 py-2 text-sm text-center border-l border-green-500/20">
+                              {modelData ? (
+                                <span className="text-green-300 font-medium">
+                                  {modelData.rpoints}
+                                </span>
+                              ) : (
+                                <span className="text-gray-500">—</span>
+                              )}
+                            </td>
+                            <td className="px-2 py-2 text-sm text-center">
+                              {modelData ? (
+                                <span className="text-gray-300">
+                                  {modelData.count}
+                                </span>
+                              ) : (
+                                <span className="text-gray-500">—</span>
+                              )}
+                            </td>
+                          </React.Fragment>
+                        );
+                      })}
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        )}
+
+        {validModelComparisons.length <= 1 && (
+          <div className="p-4 rounded-xl bg-gray-900/40 border border-gray-700/50">
+            <div className="text-center p-4">
+              <h3 className="text-lg font-medium text-green-200 mb-4">
+                Single Model Analysis
+              </h3>
+              <p className="text-gray-300 mb-4">
+                Only one model analysis is available for this video. To enable
+                comparison, analyze the video with different AI models.
+              </p>
+              <div className="inline-block px-3 py-1 bg-green-900/30 text-green-200 rounded-full border border-green-500/30">
+                {validModelComparisons[0]?.model || "Current Model"}
+              </div>
+            </div>
+          </div>
+        )}
+      </div>
+    );
+  };
+
   return (
     <motion.div
       initial={{ opacity: 0 }}
@@ -302,11 +701,13 @@ export function StatsModal({ item, onClose }: StatsModalProps) {
         <Tabs
           value={activeTab}
           onValueChange={(value) =>
-            setActiveTab(value as "stats" | "summary" | "transcript")
+            setActiveTab(
+              value as "stats" | "summary" | "transcript" | "comparison"
+            )
           }
           className="w-full"
         >
-          <TabsList className="grid w-full max-w-[600px] grid-cols-3 bg-gray-900/50 backdrop-blur-sm">
+          <TabsList className="grid w-full max-w-[600px] grid-cols-4 bg-gray-900/50 backdrop-blur-sm">
             <TabsTrigger
               value="stats"
               className="data-[state=active]:bg-blue-500/20 data-[state=active]:text-blue-300"
@@ -327,6 +728,13 @@ export function StatsModal({ item, onClose }: StatsModalProps) {
               onClick={(e) => e.stopPropagation()}
             >
               Transcript
+            </TabsTrigger>
+            <TabsTrigger
+              value="comparison"
+              className="data-[state=active]:bg-blue-500/20 data-[state=active]:text-blue-300"
+              onClick={(e) => e.stopPropagation()}
+            >
+              Compare
             </TabsTrigger>
           </TabsList>
         </Tabs>
@@ -540,6 +948,8 @@ export function StatsModal({ item, onClose }: StatsModalProps) {
                 )}
               </div>
             </div>
+          ) : activeTab === "comparison" ? (
+            renderComparisonTab()
           ) : (
             <div className="p-6 rounded-xl bg-gray-900/40 border border-gray-700/50">
               <div className="relative mb-6">
