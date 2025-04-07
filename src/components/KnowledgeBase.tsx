@@ -54,8 +54,16 @@ export default function KnowledgeBase({ items }: KnowledgeBaseProps) {
             >
               <div className="space-y-3">
                 {/* Channel Name */}
-                <div className="text-sm font-medium text-green-400">
-                  {item["channel name"]}
+                <div className="flex justify-between items-center">
+                  <div className="text-sm font-medium text-green-400">
+                    {item["channel name"]}
+                  </div>
+                  {/* Model Indicator */}
+                  {item.model && (
+                    <span className="px-2 py-0.5 rounded-full text-xs font-medium bg-cyan-900/50 text-cyan-300 border border-cyan-500/20">
+                      {item.model}
+                    </span>
+                  )}
                 </div>
 
                 {/* Title */}
