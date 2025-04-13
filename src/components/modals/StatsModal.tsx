@@ -663,6 +663,68 @@ export function StatsModal({ item, onClose }: StatsModalProps) {
             </div>
           </div>
         )}
+
+        {/* Transcript Comparison Section */}
+        {validModelComparisons.length > 0 && (
+          <div className="p-4 rounded-xl bg-gray-900/40 border border-gray-700/50">
+            <h3 className="text-lg font-medium text-green-200 mb-4">
+              Transcript Comparison
+            </h3>
+
+            <div className="space-y-4">
+              {validModelComparisons.map((model, idx) => (
+                <div
+                  key={`transcript-${idx}`}
+                  className="border border-green-500/20 rounded-lg p-4 bg-black/30"
+                >
+                  <div className="flex justify-between items-center mb-3">
+                    <h4 className="text-md font-medium text-cyan-200">
+                      {model.model || `Model ${idx + 1}`}
+                      {model.model === item.model && (
+                        <span className="ml-1 px-1.5 py-0.5 text-xs bg-green-900/50 text-green-300 rounded-full border border-green-500/20">
+                          current
+                        </span>
+                      )}
+                    </h4>
+                    <span className="text-xs text-gray-400">
+                      {model.corrected_transcript
+                        ? "Corrected transcript available"
+                        : "No corrected transcript"}
+                    </span>
+                  </div>
+
+                  <div className="max-h-48 overflow-y-auto p-3 bg-black/20 rounded text-sm text-gray-300 [&::-webkit-scrollbar]:w-2 [&::-webkit-scrollbar-track]:bg-black/20 [&::-webkit-scrollbar-thumb]:bg-green-500/80 [&::-webkit-scrollbar-thumb]:rounded-full hover:[&::-webkit-scrollbar-thumb]:bg-green-500/30">
+                    {model.corrected_transcript ? (
+                      model.corrected_transcript
+                        .split("\n")
+                        .map((line, lineIdx) => (
+                          <p key={`line-${idx}-${lineIdx}`} className="mb-1.5">
+                            {line}
+                          </p>
+                        ))
+                    ) : (
+                      <p className="text-gray-500 italic">
+                        No corrected transcript data available for this model.
+                      </p>
+                    )}
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            {validModelComparisons.every(
+              (model) => !model.corrected_transcript
+            ) && (
+              <div className="mt-4 text-center p-4 bg-gray-900/30 rounded-lg">
+                <p className="text-gray-400">
+                  No corrected transcripts are available for any models.
+                  Corrected transcripts provide human-verified versions of the
+                  automatic transcription.
+                </p>
+              </div>
+            )}
+          </div>
+        )}
       </div>
     );
   };
