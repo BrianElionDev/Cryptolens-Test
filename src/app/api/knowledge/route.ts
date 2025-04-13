@@ -32,6 +32,7 @@ interface RawKnowledgeItem {
   id: string;
   date: string;
   transcript?: string;
+  corrected_transcript?: string;
   video_title: string;
   "channel name": string;
   link?: string;
@@ -63,6 +64,7 @@ export async function GET() {
         id: item.id,
         date: item.date,
         transcript: item.transcript,
+        corrected_transcript: item.corrected_transcript,
         video_title: item.video_title,
         "channel name": item["channel name"],
         link: item.link || "",
