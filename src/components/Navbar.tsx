@@ -15,8 +15,8 @@ export default function Navbar() {
     { href: "/channels", label: "Channels" },
     { href: "/analytics", label: "Analytics" },
     { href: "/categories", label: "Categories" },
+    { href: "/youtube-analysis", label: "YouTube Analysis" },
     { href: "/autofetch", label: "Autofetch" },
-  
   ];
 
   return (

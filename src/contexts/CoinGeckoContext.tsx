@@ -331,18 +331,16 @@ export function CoinGeckoProvider({ children }: { children: React.ReactNode }) {
       for (let page = 1; page <= 3; page++) {
         console.debug(`Fetching page ${page} of coins...`);
         try {
+          // Use a public CORS proxy to avoid CORS issues with CoinGecko API
+          // This is a simple solution - for production, consider setting up your own proxy
+          const corsProxyUrl = "https://corsproxy.io/?";
+          const targetUrl = `https://api.coingecko.com/api/v3/coins/markets?vs_currency=usd&order=market_cap_desc&per_page=250&page=${page}&sparkline=false`;
+
           const response = await axios.get(
-            "https://api.coingecko.com/api/v3/coins/markets",
+            corsProxyUrl + encodeURIComponent(targetUrl),
             {
-              params: {
-                vs_currency: "usd",
-                order: "market_cap_desc",
-                per_page: 250,
-                page: page,
-                sparkline: false,
-              },
               headers: {
-                "Cache-Control": "max-age=300", // Cache for 5 minutes
+                Accept: "application/json",
               },
             }
           );
@@ -361,15 +359,27 @@ export function CoinGeckoProvider({ children }: { children: React.ReactNode }) {
 
           // Add a longer delay between requests to avoid rate limiting
           if (page < 3) {
-            await new Promise((resolve) => setTimeout(resolve, 2000));
+            await new Promise((resolve) => setTimeout(resolve, 3000)); // Increased to 3 seconds
           }
         } catch (error) {
-          if (axios.isAxiosError(error) && error.response?.status === 429) {
-            // If rate limited, wait longer and retry
-            await new Promise((resolve) => setTimeout(resolve, 5000));
-            page--; // Retry this page
-            continue;
+          console.error("Error fetching coin data:", error);
+
+          if (axios.isAxiosError(error)) {
+            if (error.response?.status === 429) {
+              // If rate limited, wait longer and retry
+              console.warn("Rate limited by CoinGecko, waiting longer...");
+              await new Promise((resolve) => setTimeout(resolve, 10000)); // Increased to 10 seconds
+              page--; // Retry this page
+              continue;
+            }
+
+            if (error.response?.status) {
+              throw new Error(
+                `CoinGecko API error: ${error.response.status} ${error.response.statusText}`
+              );
+            }
           }
+
           throw error;
         }
       }
