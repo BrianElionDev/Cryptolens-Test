@@ -99,6 +99,9 @@ export const ChannelContent = () => {
 
         projects.forEach((project) => {
           const coin = project.coin_or_project;
+          // Skip projects without a valid coin name
+          if (!coin) return;
+
           const rpoints = project.rpoints || 0;
           const categories = project.category || [];
 
@@ -374,11 +377,11 @@ export const ChannelContent = () => {
                                 <div className="flex items-center">
                                   <div className="w-8 h-8 rounded-lg bg-indigo-500/10 flex items-center justify-center mr-3">
                                     <span className="text-indigo-400 font-medium">
-                                      {coin.charAt(0)}
+                                      {coin && coin.charAt(0)}
                                     </span>
                                   </div>
                                   <span className="font-medium text-indigo-300">
-                                    {coin}
+                                    {coin || "Unknown"}
                                   </span>
                                 </div>
                               </td>

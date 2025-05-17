@@ -1,7 +1,8 @@
 import type { Metadata } from "next";
 import "./globals.css";
 import { QueryProvider } from "@/providers/QueryProvider";
-import { Toaster } from "react-hot-toast";
+import { Toaster as HotToaster } from "react-hot-toast";
+import { Toaster } from "@/components/ui/toaster";
 import Navbar from "@/components/Navbar";
 import { CoinGeckoProvider } from "@/contexts/CoinGeckoContext";
 
@@ -22,7 +23,7 @@ export default function RootLayout({
           <CoinGeckoProvider>
             <Navbar />
             {children}
-            <Toaster
+            <HotToaster
               position="bottom-right"
               toastOptions={{
                 duration: 6000,
@@ -39,6 +40,7 @@ export default function RootLayout({
                 },
               }}
             />
+            <Toaster />
           </CoinGeckoProvider>
         </QueryProvider>
       </body>
