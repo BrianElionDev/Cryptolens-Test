@@ -8,7 +8,7 @@ import { useKnowledgeData } from "@/hooks/useCoinData";
 import { KnowledgeFilter } from "@/components/KnowledgeFilter";
 
 type DateFilterType = "all" | "today" | "week" | "month" | "year";
-type SortByType = "date" | "title" | "channel";
+type SortByType = "date" | "title" | "channel" | "updated";
 
 const KnowledgePageContent = memo(function KnowledgePageContent() {
   const router = useRouter();
@@ -45,7 +45,13 @@ const KnowledgePageContent = memo(function KnowledgePageContent() {
     if (date && ["all", "today", "week", "month", "year"].includes(date)) {
       setDateFilter(date as DateFilterType);
     }
-    if (sort && ["date", "title", "channel"].includes(sort)) {
+    if (
+      sort &&
+      (sort === "date" ||
+        sort === "title" ||
+        sort === "channel" ||
+        sort === "updated")
+    ) {
       setSortBy(sort as SortByType);
     }
     if (page) setCurrentPage(Number(page));
@@ -152,6 +158,16 @@ const KnowledgePageContent = memo(function KnowledgePageContent() {
       }
       if (sortBy === "channel") {
         return (a["channel name"] || "").localeCompare(b["channel name"] || "");
+      }
+      if (sortBy === "updated") {
+        // Use updated_at if available, otherwise fallback to date
+        const aTime = a.updated_at
+          ? new Date(a.updated_at).getTime()
+          : new Date(a.date).getTime();
+        const bTime = b.updated_at
+          ? new Date(b.updated_at).getTime()
+          : new Date(b.date).getTime();
+        return bTime - aTime; // Sort newest first
       }
       return 0;
     });
@@ -298,6 +314,7 @@ const KnowledgePageContent = memo(function KnowledgePageContent() {
                     <option value="title">Sort by Title</option>
                     <option value="channel">Sort by Channel</option>
                     <option value="date">Sort by Date</option>
+                    <option value="updated">Sort by Updated</option>
                   </select>
                   <div className="absolute inset-y-0 right-2 flex items-center pointer-events-none">
                     <svg

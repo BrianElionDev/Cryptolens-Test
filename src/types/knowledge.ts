@@ -10,13 +10,13 @@ export interface KnowledgeItem {
   llm_answer: LLMAnswer;
   model?: string;
   video_type: "short" | "video";
+  updated_at: string;
 }
 
 export interface LLMAnswer {
   projects: Project[];
   total_count: number;
   total_rpoints: number;
-  valid?: boolean;
 }
 
 export interface Project {
@@ -27,6 +27,8 @@ export interface Project {
   category: string[];
   coingecko_matched?: boolean;
   cmc_matched?: boolean;
+  valid?: boolean;
+  possible_match?: string;
   coingecko_data?: {
     id: string;
     symbol: string;
