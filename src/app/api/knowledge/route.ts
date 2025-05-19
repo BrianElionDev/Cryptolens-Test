@@ -26,6 +26,7 @@ interface RawLLMAnswer {
   projects: RawProject[];
   total_count?: number;
   total_rpoints?: number;
+  valid?: boolean;
 }
 
 interface RawKnowledgeItem {
@@ -86,6 +87,7 @@ export async function GET() {
           })),
           total_count: item.llm_answer?.total_count || 0,
           total_rpoints: item.llm_answer?.total_rpoints || 0,
+          valid: item.llm_answer?.valid || false,
         },
         model: item.model,
         video_type: item.video_type || "video", // Default to video if not specified

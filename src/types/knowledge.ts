@@ -16,6 +16,7 @@ export interface LLMAnswer {
   projects: Project[];
   total_count: number;
   total_rpoints: number;
+  valid?: boolean;
 }
 
 export interface Project {

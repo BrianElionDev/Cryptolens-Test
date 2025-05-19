@@ -285,6 +285,9 @@ export function StatsModal({ item, onClose }: StatsModalProps) {
                   <th className="px-4 py-2 text-left text-xs font-medium text-green-200 uppercase tracking-wider">
                     Categories
                   </th>
+                  <th className="px-4 py-2 text-left text-xs font-medium text-green-200 uppercase tracking-wider">
+                    Valid
+                  </th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-green-500/20 bg-black/10">
@@ -357,6 +360,23 @@ export function StatsModal({ item, onClose }: StatsModalProps) {
                               </Link>
                             ))}
                           </div>
+                        </td>
+                        <td className="px-4 py-2 text-sm">
+                          <span
+                            className={`px-2 py-0.5 rounded-full text-xs font-medium ${
+                              item.llm_answer.valid === true
+                                ? "bg-green-900/50 text-green-300 border border-green-500/20"
+                                : item.llm_answer.valid === false
+                                ? "bg-red-900/50 text-red-300 border border-red-500/20"
+                                : "bg-gray-900/50 text-gray-300 border border-gray-500/20"
+                            }`}
+                          >
+                            {item.llm_answer.valid === true
+                              ? "Valid"
+                              : item.llm_answer.valid === false
+                              ? "Invalid"
+                              : "Unknown"}
+                          </span>
                         </td>
                       </tr>
                     );
