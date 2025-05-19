@@ -2,7 +2,7 @@ import { create } from "zustand";
 import { persist } from "zustand/middleware";
 
 type DateFilterType = "all" | "today" | "week" | "month" | "year";
-type SortByType = "date" | "title" | "channel";
+type SortByType = "date" | "title" | "channel" | "updated";
 
 interface KnowledgeState {
   searchTerm: string;

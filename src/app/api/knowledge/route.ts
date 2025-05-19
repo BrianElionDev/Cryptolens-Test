@@ -17,6 +17,7 @@ interface RawProject {
   marketcap?: string;
   Rpoints?: number;
   rpoints?: number;
+  valid?: boolean;
   "Total count"?: number;
   total_count?: number;
   category?: string[];
@@ -42,6 +43,7 @@ interface RawKnowledgeItem {
   llm_answer?: RawLLMAnswer;
   model?: string;
   video_type?: "short" | "video";
+  updated_at?: string;      
 }
 
 export async function GET() {
@@ -80,6 +82,7 @@ export async function GET() {
               ""
             ).toLowerCase(),
             rpoints: Number(project.Rpoints || project.rpoints || 0),
+            valid: project.valid || false,
             total_count: Number(
               project["Total count"] || project.total_count || 0
             ),
@@ -87,9 +90,10 @@ export async function GET() {
           })),
           total_count: item.llm_answer?.total_count || 0,
           total_rpoints: item.llm_answer?.total_rpoints || 0,
-          valid: item.llm_answer?.valid || false,
+          
         },
         model: item.model,
+        updated_at: item.updated_at || "",
         video_type: item.video_type || "video", // Default to video if not specified
       })
     );

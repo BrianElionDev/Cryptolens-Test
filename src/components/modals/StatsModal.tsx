@@ -24,6 +24,8 @@ interface Project {
   total_count: number;
   category?: string[];
   coingecko_matched?: boolean;
+  valid?: boolean;
+  possible_match?: string;
   coingecko_data?: {
     id: string;
     symbol: string;
@@ -364,16 +366,16 @@ export function StatsModal({ item, onClose }: StatsModalProps) {
                         <td className="px-4 py-2 text-sm">
                           <span
                             className={`px-2 py-0.5 rounded-full text-xs font-medium ${
-                              item.llm_answer.valid === true
+                              project.valid === true
                                 ? "bg-green-900/50 text-green-300 border border-green-500/20"
-                                : item.llm_answer.valid === false
+                                : project.valid === false
                                 ? "bg-red-900/50 text-red-300 border border-red-500/20"
                                 : "bg-gray-900/50 text-gray-300 border border-gray-500/20"
                             }`}
                           >
-                            {item.llm_answer.valid === true
+                            {project.valid === true
                               ? "Valid"
-                              : item.llm_answer.valid === false
+                              : project.valid === false
                               ? "Invalid"
                               : "Unknown"}
                           </span>
