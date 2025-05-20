@@ -193,7 +193,7 @@ export function TimestampModal({
                     height="100%"
                     src={`https://www.youtube.com/embed/${videoId}?start=${getSecondsFromTimestamp(
                       selectedTimestamp
-                    )}&autoplay=1&mute=0&modestbranding=1&rel=0&origin=${encodeURIComponent(
+                    )}&autoplay=1&mute=1&modestbranding=1&rel=0&origin=${encodeURIComponent(
                       window.location.origin
                     )}`}
                     title="YouTube video player"
