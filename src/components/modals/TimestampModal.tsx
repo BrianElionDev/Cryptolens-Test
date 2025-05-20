@@ -2,25 +2,69 @@
 
 import { motion } from "framer-motion";
 import { X, Clock } from "lucide-react";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 
 // Helper functions
 function timeStringToSeconds(timeStr: string): number {
-  const [h, m, s] = timeStr.split(":").map(Number);
-  return h * 3600 + m * 60 + s;
+  // Handle various timestamp formats (h:m:s, m:s, or just s)
+  const parts = timeStr.split(":").map(Number);
+  if (parts.length === 3) {
+    // Format: h:m:s
+    const [h, m, s] = parts;
+    return h * 3600 + m * 60 + s;
+  } else if (parts.length === 2) {
+    // Format: m:s
+    const [m, s] = parts;
+    return m * 60 + s;
+  } else if (parts.length === 1) {
+    // Format: s
+    return parts[0];
+  }
+  return 0; // Invalid format
 }
 
-// // Validate timestamps to filter out obviously invalid ones
-// function validateTimestamps(timestamps: string[]): string[] {
-//   // Max reasonable video length - YouTube allows up to ~12 hours, but most are far shorter
-//   const MAX_VIDEO_DURATION = 2 * 60 * 60; // 2 hours in seconds
+// Format seconds back to a consistent timestamp format
+function formatTimeString(seconds: number): string {
+  const h = Math.floor(seconds / 3600);
+  const m = Math.floor((seconds % 3600) / 60);
+  const s = Math.floor(seconds % 60);
 
-//   // Filter out timestamps that exceed our maximum reasonable duration
-//   return timestamps.filter((timestamp) => {
-//     const seconds = timeStringToSeconds(timestamp);
-//     return seconds <= MAX_VIDEO_DURATION;
-//   });
-// }
+  if (h > 0) {
+    return `${h}:${m.toString().padStart(2, "0")}:${s
+      .toString()
+      .padStart(2, "0")}`;
+  } else {
+    return `${m}:${s.toString().padStart(2, "0")}`;
+  }
+}
+
+// Validate timestamps to filter out obviously invalid ones
+function validateTimestamps(timestamps: string[]): string[] {
+  // Max reasonable video length - YouTube allows up to ~12 hours, but most are far shorter
+  const MAX_VIDEO_DURATION = 12 * 60 * 60; // 12 hours in seconds
+  const MIN_VIDEO_DURATION = 0; // 0 seconds minimum
+
+  // Get normalized timestamps - filter out invalid formats and sort
+  const validTimestamps = timestamps
+    .map((timestamp) => {
+      try {
+        const seconds = timeStringToSeconds(timestamp);
+        // Check if in valid range
+        if (seconds >= MIN_VIDEO_DURATION && seconds <= MAX_VIDEO_DURATION) {
+          return { original: timestamp, seconds };
+        }
+        return null;
+      } catch (error) {
+        console.error("Error validating timestamp:", error);
+        return null;
+      }
+    })
+    .filter((item) => item !== null)
+    .sort((a, b) => a!.seconds - b!.seconds)
+    .map((item) => item!.original);
+
+  return validTimestamps;
+}
 
 // Timestamps modal
 interface TimestampModalProps {
@@ -38,9 +82,19 @@ export function TimestampModal({
   onPlay,
   onClose,
 }: TimestampModalProps) {
-  // Use all timestamps instead of filtering them
+  // Get validated timestamps for the timeline markers
+  const validatedTimestamps = useMemo(
+    () => validateTimestamps(timestamps),
+    [timestamps]
+  );
+
+  // Use all timestamps for navigation buttons
   const [selectedTimestamp, setSelectedTimestamp] = useState<string | null>(
-    timestamps.length > 0 ? timestamps[0] : null
+    validatedTimestamps.length > 0
+      ? validatedTimestamps[0]
+      : timestamps.length > 0
+      ? timestamps[0]
+      : null
   );
 
   const [isLoading, setIsLoading] = useState(true);
@@ -55,20 +109,30 @@ export function TimestampModal({
   const getVideoDuration = () => {
     // Find max timestamp to determine overall video length
     let maxSeconds = 0;
-    timestamps.forEach((timestamp) => {
+
+    // First check validated timestamps
+    validatedTimestamps.forEach((timestamp) => {
       const seconds = timeStringToSeconds(timestamp);
       if (seconds > maxSeconds) maxSeconds = seconds;
     });
+
     // Add some buffer to the end of the video
-    return maxSeconds + 60; // Add 1 minute buffer
+    return maxSeconds + 120; // Add 2 minute buffer
   };
 
   const videoDuration = getVideoDuration();
 
-  // Get percentage position of timestamp on timeline
+  // Get percentage position of timestamp on timeline with padding for edge positions
   const getTimelinePosition = (timestamp: string) => {
+    if (videoDuration === 0) return 50; // Default center position if duration is unknown
+
     const timestampSeconds = timeStringToSeconds(timestamp);
-    return Math.min((timestampSeconds / videoDuration) * 100, 100);
+    // Constrain positions to the timeline with padding
+    // to prevent markers from being cut off at the edges
+    const calculatedPosition = (timestampSeconds / videoDuration) * 100;
+
+    // Apply minimum 2% and maximum 98% constraints for marker visibility
+    return Math.min(Math.max(calculatedPosition, 2), 98);
   };
 
   // Hide loader after a set time
@@ -102,6 +166,11 @@ export function TimestampModal({
           <h3 className="text-lg font-medium text-cyan-200 flex items-center gap-2">
             <Clock className="w-5 h-5 text-green-400" />
             {projectName} Mentions ({timestamps.length})
+            {validatedTimestamps.length < timestamps.length && (
+              <span className="text-xs text-gray-400 ml-2">
+                ({validatedTimestamps.length} validated)
+              </span>
+            )}
           </h3>
           <button
             onClick={onClose}
@@ -124,7 +193,7 @@ export function TimestampModal({
                     height="100%"
                     src={`https://www.youtube.com/embed/${videoId}?start=${getSecondsFromTimestamp(
                       selectedTimestamp
-                    )}&autoplay=1&mute=1&modestbranding=1&rel=0&origin=${encodeURIComponent(
+                    )}&autoplay=1&mute=0&modestbranding=1&rel=0&origin=${encodeURIComponent(
                       window.location.origin
                     )}`}
                     title="YouTube video player"
@@ -146,16 +215,40 @@ export function TimestampModal({
             )}
           </div>
 
-          {/* Modern integrated timeline with floating markers */}
-          {timestamps.length > 0 && (
-            <div className="mt-2 relative">
-              <div className="h-10 flex items-center">
+          {/* Modern integrated timeline with floating markers - ONLY validated timestamps */}
+          {validatedTimestamps.length > 0 && (
+            <div className="mt-4 relative px-4">
+              <div className="h-14 flex items-center">
                 {/* Timeline bar */}
-                <div className="w-full h-1 bg-gradient-to-r from-gray-800 via-gray-700 to-gray-800 rounded-full relative">
-                  {/* Timestamp markers */}
-                  {timestamps.map((time, index) => {
+                <div className="w-full h-1.5 bg-gradient-to-r from-gray-800 via-gray-700 to-gray-800 rounded-full relative">
+                  {/* Time markers */}
+                  {videoDuration > 0 && (
+                    <>
+                      {/* Start time */}
+                      <div className="absolute -bottom-6 left-0 text-xs text-gray-500">
+                        0:00
+                      </div>
+                      {/* Middle time */}
+                      <div className="absolute -bottom-6 left-1/2 -translate-x-1/2 text-xs text-gray-500">
+                        {formatTimeString(Math.floor(videoDuration / 2))}
+                      </div>
+                      {/* End time */}
+                      <div className="absolute -bottom-6 right-0 text-xs text-gray-500">
+                        {formatTimeString(videoDuration)}
+                      </div>
+                    </>
+                  )}
+
+                  {/* Timestamp markers - only showing validated ones */}
+                  {validatedTimestamps.map((time, index) => {
                     const position = getTimelinePosition(time);
                     const isSelected = selectedTimestamp === time;
+
+                    // Determine label alignment to prevent overflow at edges
+                    let labelAlignment = "center";
+                    if (position <= 10) labelAlignment = "left";
+                    if (position >= 90) labelAlignment = "right";
+
                     return (
                       <button
                         key={`marker-${index}`}
@@ -169,16 +262,29 @@ export function TimestampModal({
                         <div
                           className={`rounded-full ${
                             isSelected
-                              ? "w-4 h-4 bg-green-400 ring-2 ring-green-400/30 shadow-lg shadow-green-500/20"
+                              ? "w-5 h-5 bg-green-400 ring-2 ring-green-400/30 shadow-lg shadow-green-500/20"
                               : "w-3 h-3 bg-green-500/70 hover:bg-green-400"
                           } transition-all`}
                         />
                         <div
-                          className={`absolute -bottom-6 left-1/2 -translate-x-1/2 text-xs font-medium px-1.5 py-0.5 rounded whitespace-nowrap ${
+                          className={`absolute top-4 whitespace-nowrap text-xs font-medium px-1.5 py-0.5 rounded shadow-sm ${
                             isSelected
                               ? "bg-green-900/80 text-green-200 border border-green-500/30"
-                              : "opacity-0 group-hover:opacity-100"
+                              : "opacity-0 hover:opacity-100"
                           }`}
+                          style={{
+                            left:
+                              labelAlignment === "left"
+                                ? "0"
+                                : labelAlignment === "right"
+                                ? "auto"
+                                : "50%",
+                            right: labelAlignment === "right" ? "0" : "auto",
+                            transform:
+                              labelAlignment === "center"
+                                ? "translateX(-50%)"
+                                : "none",
+                          }}
                         >
                           {time}
                         </div>
@@ -190,21 +296,26 @@ export function TimestampModal({
             </div>
           )}
 
-          {/* Compact timestamp navigation */}
-          <div className="mt-1 px-1">
+          {/* Compact timestamp navigation - showing ALL timestamps */}
+          <div className="mt-4 px-1">
             <div className="flex flex-wrap gap-1 justify-center">
               {timestamps.map((time, index) => {
                 const isSelected = selectedTimestamp === time;
+                const isValidated = validatedTimestamps.includes(time);
                 return (
                   <button
                     key={`nav-${index}`}
                     onClick={() => setSelectedTimestamp(time)}
-                    className={`px-1.5 py-0.5 rounded-md text-xs font-medium transition-colors ${
+                    className={`px-2 py-0.5 rounded-md text-xs font-medium transition-colors ${
                       isSelected
                         ? "bg-green-500/40 text-green-100 border border-green-500/50"
-                        : "bg-black/40 text-gray-300 border border-gray-800 hover:bg-green-900/30 hover:text-green-200"
+                        : isValidated
+                        ? "bg-black/40 text-green-300 border border-green-600/50 hover:bg-green-900/30 hover:text-green-200"
+                        : "bg-black/40 text-gray-300 border border-gray-800 hover:bg-gray-800/50 hover:text-gray-200"
                     }`}
-                    title={`Jump to ${time}`}
+                    title={`Jump to ${time}${
+                      isValidated ? " (validated)" : ""
+                    }`}
                   >
                     {time}
                   </button>
@@ -219,6 +330,9 @@ export function TimestampModal({
                 <span className="text-green-300 font-medium">
                   Currently showing: {selectedTimestamp}
                 </span>
+                {validatedTimestamps.includes(selectedTimestamp) && (
+                  <span className="text-green-500 ml-1">(validated)</span>
+                )}
               </div>
               <button
                 onClick={() => onPlay(selectedTimestamp)}
