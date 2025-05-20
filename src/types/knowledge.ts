@@ -25,6 +25,7 @@ export interface Project {
   rpoints: number;
   total_count: number;
   category: string[];
+  timestamps?: string[];
   coingecko_matched?: boolean;
   cmc_matched?: boolean;
   valid?: boolean;

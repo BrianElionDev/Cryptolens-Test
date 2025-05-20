@@ -21,13 +21,14 @@ interface RawProject {
   "Total count"?: number;
   total_count?: number;
   category?: string[];
+  timestamps?: string[];
+  possible_match?: string;
 }
 
 interface RawLLMAnswer {
   projects: RawProject[];
   total_count?: number;
   total_rpoints?: number;
-  valid?: boolean;
 }
 
 interface RawKnowledgeItem {
@@ -87,6 +88,8 @@ export async function GET() {
               project["Total count"] || project.total_count || 0
             ),
             category: Array.isArray(project.category) ? project.category : [],
+            timestamps: project.timestamps || [],
+            possible_match: project.possible_match || "",
           })),
           total_count: item.llm_answer?.total_count || 0,
           total_rpoints: item.llm_answer?.total_rpoints || 0,

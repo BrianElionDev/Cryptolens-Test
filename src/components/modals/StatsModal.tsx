@@ -1,7 +1,7 @@
 "use client";
 
 import { motion } from "framer-motion";
-import { X, Search, ChevronUp, ChevronDown } from "lucide-react";
+import { X, Search, ChevronUp, ChevronDown, Clock } from "lucide-react";
 import type { KnowledgeItem } from "@/types/knowledge";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useState, useMemo, useRef, useEffect } from "react";
@@ -11,6 +11,8 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import Link from "next/link";
 import { useKnowledgeData } from "@/hooks/useCoinData";
+import { TimestampModal } from "./TimestampModal";
+import { VideoPlayerModal } from "./VideoPlayerModal";
 
 interface StatsModalProps {
   item: KnowledgeItem;
@@ -23,6 +25,7 @@ interface Project {
   rpoints: number;
   total_count: number;
   category?: string[];
+  timestamps?: string[];
   coingecko_matched?: boolean;
   valid?: boolean;
   possible_match?: string;
@@ -45,6 +48,14 @@ interface UniqueCoin {
   models: CoinModel[];
 }
 
+// Helper functions
+function getYoutubeVideoId(url: string): string {
+  if (!url) return "";
+  const regExp = /^.*(youtu.be\/|v\/|e\/|u\/\w+\/|embed\/|v=)([^#\&\?]*).*/;
+  const match = url.match(regExp);
+  return match && match[2].length === 11 ? match[2] : "";
+}
+
 export function StatsModal({ item, onClose }: StatsModalProps) {
   const [activeTab, setActiveTab] = useState<
     "stats" | "summary" | "transcript" | "comparison"
@@ -54,9 +65,23 @@ export function StatsModal({ item, onClose }: StatsModalProps) {
   const [matchedProjects, setMatchedProjects] = useState<Project[]>([]);
   const [modelComparisons, setModelComparisons] = useState<KnowledgeItem[]>([]);
   const [isLoadingComparisons, setIsLoadingComparisons] = useState(false);
+  const [videoPlayer, setVideoPlayer] = useState<{
+    open: boolean;
+    videoId: string;
+    timestamp: string;
+    timestamps: string[];
+  } | null>(null);
+  const [timestampModal, setTimestampModal] = useState<{
+    open: boolean;
+    videoId: string;
+    projectName: string;
+    timestamps: string[];
+  } | null>(null);
   const transcriptRef = useRef<HTMLDivElement>(null);
   const { topCoins, isLoading: isLoadingCoins, matchCoins } = useCoinGecko();
   const { data: knowledgeItems } = useKnowledgeData();
+
+  const videoId = useMemo(() => getYoutubeVideoId(item.link), [item.link]);
 
   useEffect(() => {
     const matchProjects = async () => {
@@ -268,27 +293,30 @@ export function StatsModal({ item, onClose }: StatsModalProps) {
 
       return (
         <div className="mt-4 space-y-4">
-          <div className="overflow-x-auto">
+          <div className="overflow-x-auto px-2">
             <table className="min-w-full divide-y divide-green-500/20 backdrop-blur-sm">
               <thead className="bg-black/20">
                 <tr>
-                  <th className="px-4 py-2 text-left text-xs font-medium text-green-200 uppercase tracking-wider">
+                  <th className="px-5 py-3 text-left text-xs font-medium text-green-200 uppercase tracking-wider">
                     Coins
                   </th>
-                  <th className="px-4 py-2 text-left text-xs font-medium text-green-200 uppercase tracking-wider">
+                  <th className="px-5 py-3 text-left text-xs font-medium text-green-200 uppercase tracking-wider">
                     Market Cap
                   </th>
-                  <th className="px-4 py-2 text-left text-xs font-medium text-green-200 uppercase tracking-wider">
+                  <th className="px-5 py-3 text-left text-xs font-medium text-green-200 uppercase tracking-wider">
                     Total Count
                   </th>
-                  <th className="px-4 py-2 text-left text-xs font-medium text-green-200 uppercase tracking-wider">
+                  <th className="px-5 py-3 text-left text-xs font-medium text-green-200 uppercase tracking-wider">
                     R Points
                   </th>
-                  <th className="px-4 py-2 text-left text-xs font-medium text-green-200 uppercase tracking-wider">
+                  <th className="px-5 py-3 text-left text-xs font-medium text-green-200 uppercase tracking-wider">
                     Categories
                   </th>
-                  <th className="px-4 py-2 text-left text-xs font-medium text-green-200 uppercase tracking-wider">
+                  <th className="px-5 py-3 text-left text-xs font-medium text-green-200 uppercase tracking-wider">
                     Valid
+                  </th>
+                  <th className="px-5 py-3 text-left text-xs font-medium text-cyan-200 uppercase tracking-wider bg-cyan-950/20 border-b border-cyan-500/20">
+                    Possible Match
                   </th>
                 </tr>
               </thead>
@@ -308,14 +336,45 @@ export function StatsModal({ item, onClose }: StatsModalProps) {
                             : "hover:bg-green-500/5"
                         }`}
                       >
-                        <td className="px-4 py-2 text-sm">
-                          <span
-                            className={`font-medium ${
-                              isTopProject ? "text-green-200" : "text-gray-300"
-                            }`}
-                          >
-                            {project.coin_or_project}
-                          </span>
+                        <td className="px-5 py-3 text-sm">
+                          <div className="flex items-center">
+                            {project.timestamps &&
+                            project.timestamps.length > 0 &&
+                            videoId ? (
+                              <button
+                                onClick={() =>
+                                  setTimestampModal({
+                                    open: true,
+                                    videoId,
+                                    projectName: project.coin_or_project,
+                                    timestamps: project.timestamps || [],
+                                  })
+                                }
+                                className={`font-medium flex items-center gap-2 hover:text-green-400 transition-colors ${
+                                  isTopProject
+                                    ? "text-green-200"
+                                    : "text-gray-300"
+                                }`}
+                                title={`View ${project.timestamps.length} mentions of ${project.coin_or_project}`}
+                              >
+                                {project.coin_or_project}
+                                <span className="inline-flex items-center gap-1 px-1.5 py-0.5 text-xs bg-blue-950/60 text-blue-300 border border-blue-500/30 rounded">
+                                  <Clock className="w-3 h-3" />
+                                  {project.timestamps.length}
+                                </span>
+                              </button>
+                            ) : (
+                              <span
+                                className={`font-medium ${
+                                  isTopProject
+                                    ? "text-green-200"
+                                    : "text-gray-300"
+                                }`}
+                              >
+                                {project.coin_or_project}
+                              </span>
+                            )}
+                          </div>
                         </td>
                         <td className="px-4 py-2 text-sm">
                           <span
@@ -379,6 +438,17 @@ export function StatsModal({ item, onClose }: StatsModalProps) {
                               ? "Invalid"
                               : "Unknown"}
                           </span>
+                        </td>
+                        <td className="px-5 py-3 text-sm">
+                          {project.possible_match ? (
+                            <div className="flex items-center">
+                              <span className="px-2 py-1 bg-cyan-950/30 text-cyan-300 rounded border border-cyan-500/30">
+                                {project.possible_match}
+                              </span>
+                            </div>
+                          ) : (
+                            <span className="text-gray-500">—</span>
+                          )}
                         </td>
                       </tr>
                     );
@@ -762,7 +832,7 @@ export function StatsModal({ item, onClose }: StatsModalProps) {
         initial={{ scale: 0.9, opacity: 0 }}
         animate={{ scale: 1, opacity: 1 }}
         exit={{ scale: 0.9, opacity: 0 }}
-        className="bg-black/80 rounded-xl p-6 max-w-4xl w-full max-h-[90vh] overflow-hidden flex flex-col ring-2 ring-green-500/20"
+        className="bg-black/80 rounded-xl p-6 max-w-5xl w-full max-h-[90vh] overflow-hidden flex flex-col ring-2 ring-green-500/20"
         onClick={(e) => e.stopPropagation()}
       >
         {/* Modal Header */}
@@ -1113,6 +1183,35 @@ export function StatsModal({ item, onClose }: StatsModalProps) {
           )}
         </div>
       </motion.div>
+
+      {/* Video Player Modal */}
+      {videoPlayer && videoPlayer.open && (
+        <VideoPlayerModal
+          videoId={videoPlayer.videoId}
+          timestamp={videoPlayer.timestamp}
+          timestamps={videoPlayer.timestamps}
+          onClose={() => setVideoPlayer(null)}
+        />
+      )}
+
+      {/* Timestamps List Modal */}
+      {timestampModal && timestampModal.open && (
+        <TimestampModal
+          videoId={timestampModal.videoId}
+          projectName={timestampModal.projectName}
+          timestamps={timestampModal.timestamps}
+          onPlay={(timestamp) => {
+            setTimestampModal(null);
+            setVideoPlayer({
+              open: true,
+              videoId: timestampModal.videoId,
+              timestamp,
+              timestamps: timestampModal.timestamps,
+            });
+          }}
+          onClose={() => setTimestampModal(null)}
+        />
+      )}
     </motion.div>
   );
 }
