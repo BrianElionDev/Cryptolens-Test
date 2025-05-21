@@ -6,7 +6,8 @@ import { useState, useEffect } from "react";
 import { VideoModal } from "./modals/VideoModal";
 import { PlayCircle } from "lucide-react";
 import { StatsModal } from "./modals/StatsModal";
-import { useCoinGecko } from "@/contexts/CoinGeckoContext";
+// Temporarily comment out the CoinGecko context
+// import { useCoinGecko } from "@/contexts/CoinGeckoContext";
 
 interface KnowledgeBaseProps {
   items: KnowledgeItem[];
@@ -16,9 +17,15 @@ export default function KnowledgeBase({ items }: KnowledgeBaseProps) {
   const [activeVideo, setActiveVideo] = useState<string | null>(null);
   const [selectedItem, setSelectedItem] = useState<KnowledgeItem | null>(null);
   const [matchedItems, setMatchedItems] = useState<KnowledgeItem[]>([]);
-  const { matchCoins } = useCoinGecko();
+  // Temporarily comment out the CoinGecko hook
+  // const { matchCoins } = useCoinGecko();
 
   useEffect(() => {
+    // Directly use items without matching
+    setMatchedItems(items);
+
+    // Previous matching code:
+    /*
     const matchItems = async () => {
       const matched = await Promise.all(
         items.map(async (item) => ({
@@ -32,15 +39,15 @@ export default function KnowledgeBase({ items }: KnowledgeBaseProps) {
       setMatchedItems(matched);
     };
     matchItems();
-  }, [items, matchCoins]);
+    */
+  }, [items]);
 
   return (
     <div className="space-y-6">
       <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
         {matchedItems.map((item, index) => {
-          const validCoins = item.llm_answer.projects.filter(
-            (p) => p.coingecko_matched || p.cmc_matched
-          ).length;
+          // Show total count of all projects instead of filtering by match status
+          const totalCoins = item.llm_answer.projects.length;
 
           return (
             <motion.div
@@ -98,9 +105,9 @@ export default function KnowledgeBase({ items }: KnowledgeBaseProps) {
                       {item.video_type === "video" ? "Video" : "Short"}
                     </div>
                   </div>
-                  {/* Coin Count */}
+                  {/* Coin Count - Now shows all coins */}
                   <div className="text-sm text-blue-600 bg-black/30 backdrop-blur-sm px-2 py-1 rounded-md shrink-0">
-                    {validCoins} coins
+                    {totalCoins} coins
                   </div>
                 </div>
               </div>
