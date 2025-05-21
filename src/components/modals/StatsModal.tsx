@@ -87,7 +87,8 @@ export function StatsModal({ item, onClose }: StatsModalProps) {
     const matchProjects = async () => {
       if (!topCoins || isLoadingCoins) return;
       const matched = await matchCoins(item.llm_answer.projects);
-      setMatchedProjects(matched.filter((p) => p.coingecko_matched));
+      // Show all projects without filtering by coingecko_matched
+      setMatchedProjects(matched);
     };
     matchProjects();
   }, [topCoins, item.llm_answer.projects, isLoadingCoins, matchCoins]);
@@ -179,9 +180,7 @@ export function StatsModal({ item, onClose }: StatsModalProps) {
     fetchModelComparisons();
   }, [item, matchCoins, knowledgeItems]);
 
-  const validProjects = useMemo(() => {
-    return matchedProjects;
-  }, [matchedProjects]);
+  // No longer needed since we use matchedProjects directly
 
   const matches = useMemo(() => {
     if (!item.transcript || !searchQuery) return [];
@@ -258,7 +257,9 @@ export function StatsModal({ item, onClose }: StatsModalProps) {
         );
       }
 
-      const projects = validProjects;
+      // Use all projects from item directly without filtering
+      const projects =
+        item.llm_answer.projects.length > 0 ? matchedProjects : [];
 
       if (!projects || projects.length === 0) {
         return (
@@ -501,11 +502,10 @@ export function StatsModal({ item, onClose }: StatsModalProps) {
       const hasLlmAnswer = !!model.llm_answer;
       const hasProjects =
         !!model.llm_answer?.projects && model.llm_answer.projects.length > 0;
-      const hasMatchedCoins =
-        model.llm_answer?.projects?.some((p) => p.coingecko_matched) || false;
+      // Remove the requirement for matched coins
 
       // Debug detailed reasons for exclusion
-      const isValid = hasLlmAnswer && hasProjects && hasMatchedCoins;
+      const isValid = hasLlmAnswer && hasProjects;
       if (!isValid) {
         console.log(
           `Model ${model.model} excluded because:`,
@@ -513,7 +513,7 @@ export function StatsModal({ item, onClose }: StatsModalProps) {
             ? "no llm_answer"
             : !hasProjects
             ? "no projects"
-            : "no matched coins"
+            : "unknown reason"
         );
       }
 
@@ -562,25 +562,23 @@ export function StatsModal({ item, onClose }: StatsModalProps) {
       const coinMap = new Map<string, UniqueCoin>();
 
       validModelComparisons.forEach((modelItem) => {
-        modelItem.llm_answer.projects
-          .filter((p) => p.coingecko_matched)
-          .forEach((project) => {
-            if (!coinMap.has(project.coin_or_project)) {
-              coinMap.set(project.coin_or_project, {
-                name: project.coin_or_project,
-                models: [],
-              });
-            }
+        modelItem.llm_answer.projects.forEach((project) => {
+          if (!coinMap.has(project.coin_or_project)) {
+            coinMap.set(project.coin_or_project, {
+              name: project.coin_or_project,
+              models: [],
+            });
+          }
 
-            const coinEntry = coinMap.get(project.coin_or_project);
-            if (coinEntry) {
-              coinEntry.models.push({
-                modelName: modelItem.model || "Unknown",
-                rpoints: project.rpoints,
-                count: project.total_count,
-              });
-            }
-          });
+          const coinEntry = coinMap.get(project.coin_or_project);
+          if (coinEntry) {
+            coinEntry.models.push({
+              modelName: modelItem.model || "Unknown",
+              rpoints: project.rpoints,
+              count: project.total_count,
+            });
+          }
+        });
       });
 
       return Array.from(coinMap.values()).sort(
@@ -631,11 +629,7 @@ export function StatsModal({ item, onClose }: StatsModalProps) {
                         )}
                       </td>
                       <td className="px-4 py-2 text-sm">
-                        {
-                          model.llm_answer.projects.filter(
-                            (p) => p.coingecko_matched
-                          ).length
-                        }
+                        {model.llm_answer.projects.length}
                       </td>
                       <td className="px-4 py-2 text-sm">
                         {model.llm_answer.total_rpoints ||
