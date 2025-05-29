@@ -249,15 +249,6 @@ export function StatsModal({ item, onClose }: StatsModalProps) {
 
   const renderLLMAnswer = () => {
     try {
-      if (isLoadingCoins) {
-        return (
-          <div className="mt-4 flex flex-col items-center justify-center p-8 space-y-4">
-            <div className="w-8 h-8 border-2 border-green-500/20 border-t-green-500 rounded-full animate-spin" />
-            <p className="text-sm text-gray-400">Loading coin data...</p>
-          </div>
-        );
-      }
-
       // Use all projects from item directly without filtering
       const projects =
         item.llm_answer.projects.length > 0 ? matchedProjects : [];
