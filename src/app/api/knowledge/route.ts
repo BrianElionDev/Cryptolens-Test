@@ -23,6 +23,7 @@ interface RawProject {
   category?: string[];
   timestamps?: string[];
   possible_match?: string;
+  action?: string;
 }
 
 interface RawLLMAnswer {
@@ -90,6 +91,7 @@ export async function GET() {
             category: Array.isArray(project.category) ? project.category : [],
             timestamps: project.timestamps || [],
             possible_match: project.possible_match || "",
+            action: project.action || "",
           })),
           total_count: item.llm_answer?.total_count || 0,
           total_rpoints: item.llm_answer?.total_rpoints || 0,

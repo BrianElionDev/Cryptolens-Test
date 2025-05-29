@@ -29,6 +29,7 @@ interface Project {
   coingecko_matched?: boolean;
   valid?: boolean;
   possible_match?: string;
+  action?: string;
   coingecko_data?: {
     id: string;
     symbol: string;
@@ -319,6 +320,9 @@ export function StatsModal({ item, onClose }: StatsModalProps) {
                   <th className="px-5 py-3 text-left text-xs font-medium text-cyan-200 uppercase tracking-wider bg-cyan-950/20 border-b border-cyan-500/20">
                     Possible Match
                   </th>
+                  <th className="px-5 py-3 text-left text-xs font-medium text-green-200 uppercase tracking-wider min-w-[120px] whitespace-nowrap">
+                    Action
+                  </th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-green-500/20 bg-black/10">
@@ -338,7 +342,7 @@ export function StatsModal({ item, onClose }: StatsModalProps) {
                         }`}
                       >
                         <td className="px-5 py-3 text-sm">
-                          <div className="flex items-center">
+                          <div className="flex items-center justify-start">
                             {project.timestamps &&
                             project.timestamps.length > 0 &&
                             videoId ? (
@@ -351,7 +355,7 @@ export function StatsModal({ item, onClose }: StatsModalProps) {
                                     timestamps: project.timestamps || [],
                                   })
                                 }
-                                className={`font-medium flex items-center gap-2 hover:text-green-400 transition-colors ${
+                                className={`font-medium flex text-left items-center justify-center gap-2 hover:text-green-400 transition-colors ${
                                   isTopProject
                                     ? "text-green-200"
                                     : "text-gray-300"
@@ -448,7 +452,25 @@ export function StatsModal({ item, onClose }: StatsModalProps) {
                               </span>
                             </div>
                           ) : (
-                            <span className="text-gray-500">—</span>
+                            <span className="text-gray-500">
+                              {" "}
+                              No possible match
+                            </span>
+                          )}
+                        </td>
+                        <td className="px-10 py-3 text-sm min-w-[120px] whitespace-nowrap">
+                          {project.action === "UPDATE" ? (
+                            <span className="px-2 py-1 bg-yellow-900/30 text-yellow-300 rounded border border-yellow-500/30 whitespace-nowrap block text-center">
+                              UPDATE
+                            </span>
+                          ) : project.action === "DELETE" ? (
+                            <span className="px-2 py-1 bg-red-900/30 text-red-300 rounded border border-red-500/30 whitespace-nowrap block text-center">
+                              DELETE
+                            </span>
+                          ) : (
+                            <span className="px-2 py-1 bg-gray-900/30 text-grey-300 rounded border border-gray-500/30 whitespace-nowrap block text-center">
+                              NO ACTION
+                            </span>
                           )}
                         </td>
                       </tr>

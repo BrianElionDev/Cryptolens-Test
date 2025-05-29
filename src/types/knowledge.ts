@@ -28,6 +28,7 @@ export interface Project {
   timestamps?: string[];
   coingecko_matched?: boolean;
   cmc_matched?: boolean;
+  action?: string;
   valid?: boolean;
   possible_match?: string;
   coingecko_data?: {
