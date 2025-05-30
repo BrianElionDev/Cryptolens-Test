@@ -29,6 +29,7 @@ interface Project {
   coingecko_matched?: boolean;
   valid?: boolean;
   possible_match?: string;
+  found_in?: string;
   action?: string;
   coingecko_data?: {
     id: string;
@@ -314,6 +315,9 @@ export function StatsModal({ item, onClose }: StatsModalProps) {
                   <th className="px-5 py-3 text-left text-xs font-medium text-green-200 uppercase tracking-wider min-w-[120px] whitespace-nowrap">
                     Action
                   </th>
+                  <th className="px-5 py-3 text-left text-xs font-medium text-green-200 uppercase tracking-wider min-w-[120px] whitespace-nowrap">
+                    Found In
+                  </th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-green-500/20 bg-black/10">
@@ -449,7 +453,7 @@ export function StatsModal({ item, onClose }: StatsModalProps) {
                             </span>
                           )}
                         </td>
-                        <td className="px-10 py-3 text-sm min-w-[120px] whitespace-nowrap">
+                        <td className="px-4 py-3 text-sm min-w-[80px] whitespace-nowrap">
                           {project.action === "UPDATE" ? (
                             <span className="px-2 py-1 bg-yellow-900/30 text-yellow-300 rounded border border-yellow-500/30 whitespace-nowrap block text-center">
                               UPDATE
@@ -461,6 +465,17 @@ export function StatsModal({ item, onClose }: StatsModalProps) {
                           ) : (
                             <span className="px-2 py-1 bg-gray-900/30 text-grey-300 rounded border border-gray-500/30 whitespace-nowrap block text-center">
                               NO ACTION
+                            </span>
+                          )}
+                        </td>
+                        <td className="px-4 py-3 text-sm min-w-[100px] whitespace-nowrap">
+                          {project.found_in ? (
+                            <span className="px-2 py-1 bg-gray-900/30 text-gray-300 rounded border border-gray-500/30 whitespace-nowrap block text-center">
+                              {project.found_in}
+                            </span>
+                          ) : (
+                            <span className="px-2 py-1 bg-gray-900/30 text-gray-300 rounded border border-gray-500/30 whitespace-nowrap block text-center">
+                              Not found
                             </span>
                           )}
                         </td>
@@ -839,7 +854,7 @@ export function StatsModal({ item, onClose }: StatsModalProps) {
         initial={{ scale: 0.9, opacity: 0 }}
         animate={{ scale: 1, opacity: 1 }}
         exit={{ scale: 0.9, opacity: 0 }}
-        className="bg-black/80 rounded-xl p-6 max-w-5xl w-full max-h-[90vh] overflow-hidden flex flex-col ring-2 ring-green-500/20"
+        className="bg-black/80 rounded-xl p-6 max-w-[70vw] w-full max-h-[90vh] overflow-hidden flex flex-col ring-2 ring-green-500/20"
         onClick={(e) => e.stopPropagation()}
       >
         {/* Modal Header */}

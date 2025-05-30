@@ -23,6 +23,7 @@ interface RawProject {
   category?: string[];
   timestamps?: string[];
   possible_match?: string;
+  found_in?: string;
   action?: string;
 }
 
@@ -92,6 +93,7 @@ export async function GET() {
             timestamps: project.timestamps || [],
             possible_match: project.possible_match || "",
             action: project.action || "",
+            found_in: project.found_in || "",
           })),
           total_count: item.llm_answer?.total_count || 0,
           total_rpoints: item.llm_answer?.total_rpoints || 0,
