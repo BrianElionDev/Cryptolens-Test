@@ -31,6 +31,7 @@ export interface Project {
   action?: string;
   valid?: boolean;
   possible_match?: string;
+  found_in?: string;
   coingecko_data?: {
     id: string;
     symbol: string;
