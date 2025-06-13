@@ -24,7 +24,7 @@ export interface Project {
   marketcap: string;
   rpoints: number;
   total_count: number;
-  category: string[];
+  category?: string[];
   timestamps?: string[];
   coingecko_matched?: boolean;
   cmc_matched?: boolean;
@@ -32,6 +32,11 @@ export interface Project {
   valid?: boolean;
   possible_match?: string;
   found_in?: string;
+  coin?: {
+    id: string;
+    name: string;
+    symbol: string;
+  };
   coingecko_data?: {
     id: string;
     symbol: string;
