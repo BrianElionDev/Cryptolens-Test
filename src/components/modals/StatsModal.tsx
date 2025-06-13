@@ -2,7 +2,7 @@
 
 import { motion } from "framer-motion";
 import { X, Search, ChevronUp, ChevronDown, Clock } from "lucide-react";
-import type { KnowledgeItem } from "@/types/knowledge";
+import type { KnowledgeItem, Project } from "@/types/knowledge";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useState, useMemo, useRef, useEffect } from "react";
 import React from "react";
@@ -17,25 +17,6 @@ import { VideoPlayerModal } from "./VideoPlayerModal";
 interface StatsModalProps {
   item: KnowledgeItem;
   onClose: () => void;
-}
-
-interface Project {
-  coin_or_project: string;
-  marketcap: string;
-  rpoints: number;
-  total_count: number;
-  category?: string[];
-  timestamps?: string[];
-  coingecko_matched?: boolean;
-  valid?: boolean;
-  possible_match?: string;
-  found_in?: string;
-  action?: string;
-  coingecko_data?: {
-    id: string;
-    symbol: string;
-    name: string;
-  };
 }
 
 interface CoinModel {
@@ -250,6 +231,33 @@ export function StatsModal({ item, onClose }: StatsModalProps) {
 
   const renderLLMAnswer = () => {
     try {
+      // Check if llm_answer and projects exist
+      if (!item.llm_answer || !item.llm_answer.projects) {
+        return (
+          <div className="flex flex-col items-center justify-center p-12 text-center">
+            <div className="w-16 h-16 mb-4 text-gray-500">
+              <svg
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="1.5"
+              >
+                <path d="M3 7v10c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V7c0-1.1-.9-2-2-2H5c-1.1 0-2 .9-2 2z" />
+                <path d="M16 3v4M8 3v4M3 9h18" />
+                <path d="M8 13h.01M12 13h.01M16 13h.01M8 17h.01M12 17h.01M16 17h.01" />
+              </svg>
+            </div>
+            <h3 className="text-lg font-medium text-gray-400 mb-2">
+              No Analysis Data Available
+            </h3>
+            <p className="text-gray-500 max-w-sm">
+              This video hasn&apos;t been analyzed yet or the analysis data is
+              missing.
+            </p>
+          </div>
+        );
+      }
+
       // Use all projects from item directly without filtering
       const projects =
         item.llm_answer.projects.length > 0 ? matchedProjects : [];
@@ -409,17 +417,21 @@ export function StatsModal({ item, onClose }: StatsModalProps) {
                         </td>
                         <td className="px-4 py-2 text-sm">
                           <div className="flex flex-wrap gap-1">
-                            {project.category?.map((cat: string, i: number) => (
-                              <Link
-                                key={`${project.coin_or_project}-${cat}-${i}`}
-                                href={`/categories/${cat
-                                  .toLowerCase()
-                                  .replace(/\s+/g, "-")}`}
-                                className="px-2 py-0.5 rounded-full text-xs bg-black/50 text-gray-300 border border-green-500/20 hover:bg-green-500/10 hover:text-green-300 transition-colors"
-                              >
-                                {cat}
-                              </Link>
-                            ))}
+                            {project.category
+                              ?.filter(
+                                (cat: unknown) => typeof cat === "string" && cat
+                              )
+                              .map((cat: string, i: number) => (
+                                <Link
+                                  key={`${project.coin_or_project}-${cat}-${i}`}
+                                  href={`/categories/${cat
+                                    .toLowerCase()
+                                    .replace(/\s+/g, "-")}`}
+                                  className="px-2 py-0.5 rounded-full text-xs bg-black/50 text-gray-300 border border-green-500/20 hover:bg-green-500/10 hover:text-green-300 transition-colors"
+                                >
+                                  {cat}
+                                </Link>
+                              ))}
                           </div>
                         </td>
                         <td className="px-4 py-2 text-sm">
@@ -487,8 +499,28 @@ export function StatsModal({ item, onClose }: StatsModalProps) {
           </div>
         </div>
       );
-    } catch {
-      return <div>Error rendering LLM answer</div>;
+    } catch (error) {
+      console.error("Error rendering LLM answer:", error, "Item:", item);
+      return (
+        <div className="flex flex-col items-center justify-center p-12 text-center">
+          <div className="w-16 h-16 mb-4 text-red-500">
+            <svg
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="1.5"
+            >
+              <path d="M10 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2m7-2a9 9 0 11-18 0 9 9 0 0118 0z" />
+            </svg>
+          </div>
+          <h3 className="text-lg font-medium text-red-400 mb-2">
+            Error Loading Data
+          </h3>
+          <p className="text-red-500 max-w-sm">
+            There was an error rendering the analysis data for this video.
+          </p>
+        </div>
+      );
     }
   };
 

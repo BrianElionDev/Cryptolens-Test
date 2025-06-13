@@ -24,7 +24,12 @@ interface RawProject {
   timestamps?: string[];
   possible_match?: string;
   found_in?: string;
-  action?: string;
+  action?: string;  
+  coin?: {
+    id: string;
+    name: string;
+    symbol: string;
+  };
 }
 
 interface RawLLMAnswer {
@@ -94,6 +99,7 @@ export async function GET() {
             possible_match: project.possible_match || "",
             action: project.action || "",
             found_in: project.found_in || "",
+            coin: project.coin || undefined,
           })),
           total_count: item.llm_answer?.total_count || 0,
           total_rpoints: item.llm_answer?.total_rpoints || 0,
@@ -192,6 +198,7 @@ export async function POST(request: Request) {
                   category: Array.isArray(project.category)
                     ? project.category
                     : [],
+                  coin: project.coin || null,
                 }))
               : [],
           total_count: Number(item.llm_answer?.[0]?.total_count || 0),
