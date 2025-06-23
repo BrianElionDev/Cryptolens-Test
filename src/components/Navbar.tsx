@@ -17,6 +17,7 @@ export default function Navbar() {
     { href: "/categories", label: "Categories" },
     { href: "/youtube-analysis", label: "YouTube Analysis" },
     { href: "/autofetch", label: "Autofetch" },
+    { href: "/wealthgroup", label: "Wealthgroup" },
   ];
 
   return (
