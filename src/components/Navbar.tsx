@@ -18,6 +18,7 @@ export default function Navbar() {
     { href: "/youtube-analysis", label: "YouTube Analysis" },
     { href: "/autofetch", label: "Autofetch" },
     { href: "/wealthgroup", label: "Wealthgroup" },
+    { href: "/trades-table", label: "Trades Table" },
   ];
 
   return (
@@ -42,7 +43,7 @@ export default function Navbar() {
               </Link>
 
               {/* Desktop Navigation */}
-              <nav className="hidden md:flex items-center space-x-8">
+              <nav className="hidden md:flex items-center space-x-2">
                 {navLinks.map((link) => (
                   <Link
                     key={link.href}
