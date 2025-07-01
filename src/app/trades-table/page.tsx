@@ -2,6 +2,7 @@
 
 import { useState, useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
+import { createClient } from "@supabase/supabase-js";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
@@ -25,7 +26,6 @@ import {
 import {
   AlertTriangle,
   TrendingUp,
-  User,
   Search,
   Filter,
   ArrowUpDown,
@@ -34,12 +34,41 @@ import {
 import { Alert, Trade } from "@/types/wealthgroup";
 import { formatInTimeZone } from "date-fns-tz";
 
-async function fetchWealthgroupData() {
-  const response = await fetch("/api/wealthgroup");
-  if (!response.ok) {
-    throw new Error("Failed to fetch wealthgroup data");
+interface TradingLogRow {
+  id: string;
+  timestamp: string;
+  text_of_signal: string;
+  state: string;
+  coin: string;
+  action_1: string;
+  action_2: string;
+}
+
+const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
+const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
+
+const supabase = createClient(supabaseUrl, supabaseAnonKey);
+
+async function fetchTradingLogData() {
+  const { data, error } = await supabase
+    .from("trading_log")
+    .select("*")
+    .order("timestamp", { ascending: false });
+
+  if (error) {
+    throw new Error(`Failed to fetch trading log: ${error.message}`);
   }
-  return response.json();
+
+  // Debug: Log the first row to see actual field names and data
+  if (data && data.length > 0) {
+    console.log("First row from trading_log:", data[0]);
+    console.log("Available fields:", Object.keys(data[0]));
+    console.log("All unique states:", [
+      ...new Set(data.map((row: TradingLogRow) => row.state)),
+    ]);
+  }
+
+  return data;
 }
 
 interface TradeEntry {
@@ -47,7 +76,10 @@ interface TradeEntry {
   type: "trade" | "alert";
   timestamp: string;
   content: string;
-  trader: string;
+  state: string;
+  coin: string;
+  action_1: string;
+  action_2: string | null;
   trade?: Trade;
   alert?: Alert;
   originalTradeId?: string;
@@ -55,66 +87,86 @@ interface TradeEntry {
 
 export default function TradesTablePage() {
   const [searchTerm, setSearchTerm] = useState("");
-  const [selectedTrader, setSelectedTrader] = useState("all");
+  const [selectedState, setSelectedState] = useState("all");
   const [selectedCoin, setSelectedCoin] = useState("all");
   const [sortBy, setSortBy] = useState<"newest" | "oldest">("newest");
   const [resultLimit, setResultLimit] = useState<number>(50);
-  const [showFollowUpsOnly, setShowFollowUpsOnly] = useState<string>("all");
 
   const { data, isLoading, error } = useQuery({
-    queryKey: ["wealthgroup"],
-    queryFn: fetchWealthgroupData,
+    queryKey: ["trading_log"],
+    queryFn: fetchTradingLogData,
     refetchInterval: 30000,
   });
 
-  const { alerts = [], trades = [] } = data || {};
-
-  // Create combined entries for trades and alerts
+  // Create entries from trading_log view
   const allEntries = useMemo((): TradeEntry[] => {
-    const entries: TradeEntry[] = [];
+    const tradingLogData = data || [];
+    return tradingLogData.map((row: TradingLogRow) => {
+      const isEntry = row.state === "entry";
 
-    // Add all trades as entries
-    trades.forEach((trade: Trade) => {
-      entries.push({
-        id: trade.discord_id,
-        type: "trade",
-        timestamp: trade.timestamp,
-        content: trade.content,
-        trader: trade.trader,
-        trade: trade,
-      });
+      return {
+        id: row.id,
+        type: isEntry ? "trade" : "alert",
+        timestamp: row.timestamp,
+        content: row.text_of_signal,
+        state: row.state,
+        coin: row.coin,
+        action_1: row.action_1,
+        action_2: row.action_2,
+        trade: isEntry
+          ? {
+              id: parseInt(row.id) || 0,
+              discord_id: row.id,
+              timestamp: row.timestamp,
+              content: row.text_of_signal,
+              structured: "",
+              trader: "",
+              parsed_signal: {
+                coin_symbol: row.coin,
+                position_type: row.action_1?.includes("LONG")
+                  ? "LONG"
+                  : "SHORT",
+                entry_prices: row.action_1?.match(/[\d.]+/g)?.map(Number) || [],
+                stop_loss: parseFloat(
+                  row.action_2?.match(/[\d.]+/)?.[0] || "0"
+                ),
+                take_profits: null,
+                order_type: "market",
+                risk_level: null,
+              },
+            }
+          : undefined,
+        alert: !isEntry
+          ? {
+              discord_id: row.id,
+              timestamp: row.timestamp,
+              content: row.text_of_signal,
+              trader: "",
+              trade: "",
+            }
+          : undefined,
+        originalTradeId: undefined,
+      };
     });
+  }, [data]);
 
-    // Add all alerts as entries
-    alerts.forEach((alert: Alert) => {
-      entries.push({
-        id: alert.discord_id,
-        type: "alert",
-        timestamp: alert.timestamp,
-        content: alert.content,
-        trader: alert.trader,
-        alert: alert,
-        originalTradeId: alert.trade,
-      });
-    });
-
-    return entries;
-  }, [trades, alerts]);
-
-  // Get unique traders
-  const traders = useMemo((): string[] => {
-    const uniqueTraders = new Set(allEntries.map((entry) => entry.trader));
-    return Array.from(uniqueTraders).sort();
-  }, [allEntries]);
+  // Get unique states from database
+  const tradeTypes = useMemo((): string[] => {
+    const tradingLogData = data || [];
+    const uniqueStates = new Set(
+      tradingLogData.map((row: TradingLogRow) => row.state)
+    );
+    return Array.from(uniqueStates).sort();
+  }, [data]);
 
   // Get unique coins
   const coins = useMemo((): string[] => {
     const uniqueCoins = new Set(
       allEntries
-        .filter((entry) => entry.trade?.parsed_signal?.coin_symbol)
-        .map((entry) => entry.trade!.parsed_signal!.coin_symbol as string)
+        .filter((entry) => entry.coin)
+        .map((entry) => entry.coin.toLowerCase())
     );
-    return Array.from(uniqueCoins).sort() as string[];
+    return Array.from(uniqueCoins).sort();
   }, [allEntries]);
 
   // Filter and sort entries
@@ -123,24 +175,14 @@ export default function TradesTablePage() {
       const matchesSearch =
         searchTerm === "" ||
         entry.content.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        entry.trader.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        entry.trade?.parsed_signal?.coin_symbol
-          ?.toLowerCase()
-          .includes(searchTerm.toLowerCase());
+        entry.coin.toLowerCase().includes(searchTerm.toLowerCase());
 
-      const matchesTrader =
-        selectedTrader === "all" || entry.trader === selectedTrader;
+      const matchesState =
+        selectedState === "all" || entry.state === selectedState;
 
-      const matchesCoin =
-        selectedCoin === "all" ||
-        entry.trade?.parsed_signal?.coin_symbol === selectedCoin;
+      const matchesCoin = selectedCoin === "all" || entry.coin === selectedCoin;
 
-      const matchesFollowUps =
-        showFollowUpsOnly === "all" ||
-        (showFollowUpsOnly === "with_followups" && entry.type === "alert") ||
-        (showFollowUpsOnly === "no_followups" && entry.type === "trade");
-
-      return matchesSearch && matchesTrader && matchesCoin && matchesFollowUps;
+      return matchesSearch && matchesState && matchesCoin;
     });
 
     const sorted = filtered.sort((a: TradeEntry, b: TradeEntry) => {
@@ -154,15 +196,14 @@ export default function TradesTablePage() {
   }, [
     allEntries,
     searchTerm,
-    selectedTrader,
+    selectedState,
     selectedCoin,
     sortBy,
     resultLimit,
-    showFollowUpsOnly,
   ]);
 
   const getStateFromSignal = (trade: Trade, alert?: Alert) => {
-    if (alert) {
+    if (alert && alert.content) {
       const content = alert.content.toLowerCase();
       if (content.includes("sl to be") || content.includes("stop loss to be")) {
         return "SL to BE";
@@ -182,34 +223,6 @@ export default function TradesTablePage() {
       return "Follow Up";
     }
     return "Entry";
-  };
-
-  const getActionFromTrade = (trade: Trade) => {
-    if (!trade.parsed_signal) return trade.content.substring(0, 50) + "...";
-
-    const signal = trade.parsed_signal;
-    const actions = [];
-
-    if (
-      signal.position_type &&
-      signal.entry_prices &&
-      signal.entry_prices.length > 0
-    ) {
-      actions.push(
-        `${signal.position_type.toLowerCase()} at $${signal.entry_prices.join(
-          ", $"
-        )}`
-      );
-    }
-
-    return actions.length > 0
-      ? actions.join(", ")
-      : trade.content.substring(0, 50) + "...";
-  };
-
-  const getAction2FromTrade = (trade: Trade) => {
-    if (!trade.parsed_signal?.stop_loss) return "";
-    return `stop loss $${trade.parsed_signal.stop_loss}`;
   };
 
   if (isLoading) {
@@ -287,23 +300,23 @@ export default function TradesTablePage() {
             <div className="flex-1 relative">
               <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
               <Input
-                placeholder="Search trades, traders, coins, or content..."
+                placeholder="Search trades, coins, or content..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
                 className="pl-10 bg-gray-900/50 border-gray-700 text-white"
               />
             </div>
             <div className="flex flex-col sm:flex-row gap-4">
-              <Select value={selectedTrader} onValueChange={setSelectedTrader}>
+              <Select value={selectedState} onValueChange={setSelectedState}>
                 <SelectTrigger className="w-full sm:w-[180px] bg-gray-900/50 border-gray-700 text-white">
                   <Filter className="w-4 h-4 mr-2" />
-                  <SelectValue placeholder="Filter by trader" />
+                  <SelectValue placeholder="Filter by type" />
                 </SelectTrigger>
                 <SelectContent className="bg-gray-900 border-gray-700">
-                  <SelectItem value="all">All Traders</SelectItem>
-                  {traders.map((trader) => (
-                    <SelectItem key={trader} value={trader}>
-                      {trader}
+                  <SelectItem value="all">All Types</SelectItem>
+                  {tradeTypes.map((type) => (
+                    <SelectItem key={type} value={type}>
+                      {type}
                     </SelectItem>
                   ))}
                 </SelectContent>
@@ -322,22 +335,7 @@ export default function TradesTablePage() {
                   ))}
                 </SelectContent>
               </Select>
-              <Select
-                value={showFollowUpsOnly}
-                onValueChange={setShowFollowUpsOnly}
-              >
-                <SelectTrigger className="w-full sm:w-[160px] bg-gray-900/50 border-gray-700 text-white">
-                  <AlertTriangle className="w-4 h-4 mr-2" />
-                  <SelectValue placeholder="Follow-ups" />
-                </SelectTrigger>
-                <SelectContent className="bg-gray-900 border-gray-700">
-                  <SelectItem value="all">All Trades</SelectItem>
-                  <SelectItem value="with_followups">
-                    With Follow-ups
-                  </SelectItem>
-                  <SelectItem value="no_followups">No Follow-ups</SelectItem>
-                </SelectContent>
-              </Select>
+
               <Select
                 value={sortBy}
                 onValueChange={(value) =>
@@ -410,13 +408,10 @@ export default function TradesTablePage() {
                       Asset
                     </TableHead>
                     <TableHead className="text-gray-300 font-semibold min-w-[200px]">
-                      Entry Action
+                      Action 1
                     </TableHead>
                     <TableHead className="text-gray-300 font-semibold min-w-[150px]">
-                      Risk Management
-                    </TableHead>
-                    <TableHead className="text-gray-300 font-semibold min-w-[120px]">
-                      Trader
+                      Action 2
                     </TableHead>
                   </TableRow>
                 </TableHeader>
@@ -487,46 +482,29 @@ export default function TradesTablePage() {
                         </TableCell>
                         <TableCell>
                           <span className="text-blue-300 font-medium">
-                            {entry.trade?.parsed_signal?.coin_symbol || "N/A"}
+                            {entry.coin || "N/A"}
                           </span>
                         </TableCell>
                         <TableCell className="max-w-[250px]">
                           <div className="text-yellow-300 text-sm truncate">
-                            {entry.type === "trade"
-                              ? getActionFromTrade(entry.trade!)
-                              : "Update signal"}
+                            {entry.action_1 || "-"}
                           </div>
                         </TableCell>
                         <TableCell className="max-w-[250px]">
                           <div className="text-red-300 text-sm truncate">
-                            {entry.type === "trade"
-                              ? getAction2FromTrade(entry.trade!)
-                              : "-"}
+                            {entry.action_2 || "-"}
                           </div>
-                        </TableCell>
-                        <TableCell>
-                          <Badge
-                            variant="outline"
-                            className={
-                              entry.type === "trade"
-                                ? "border-purple-500/50 text-purple-300"
-                                : "border-gray-500/50 text-gray-400"
-                            }
-                          >
-                            <User className="w-3 h-3 mr-1" />
-                            {entry.trader}
-                          </Badge>
                         </TableCell>
                       </TableRow>
                     );
                   })}
                   {filteredEntries.length === 0 && (
                     <TableRow>
-                      <TableCell colSpan={8} className="text-center py-8">
+                      <TableCell colSpan={7} className="text-center py-8">
                         <TrendingUp className="w-12 h-12 text-gray-500 mx-auto mb-4" />
                         <p className="text-gray-400">
                           {searchTerm ||
-                          selectedTrader !== "all" ||
+                          selectedState !== "all" ||
                           selectedCoin !== "all"
                             ? "No trades match your filters"
                             : "No trades available"}
