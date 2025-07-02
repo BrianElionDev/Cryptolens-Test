@@ -6,6 +6,7 @@ import { createClient } from "@supabase/supabase-js";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   Select,
   SelectContent,
@@ -44,6 +45,23 @@ interface TradingLogRow {
   action_2: string;
 }
 
+interface TradesRow {
+  id: number;
+  discord_id: string;
+  trader: string;
+  content: string;
+  structured: string;
+  timestamp: string;
+  trade_group_id: string;
+  signal_type: string;
+  is_active: boolean;
+  status: string;
+  exchange_order_id: string | null;
+  exit_price: number | null;
+  pnl_usd: number | null;
+  parsed_signal: object;
+}
+
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
 const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
 
@@ -71,6 +89,19 @@ async function fetchTradingLogData() {
   return data;
 }
 
+async function fetchTradesData() {
+  const { data, error } = await supabase
+    .from("trades")
+    .select("*")
+    .order("timestamp", { ascending: false });
+
+  if (error) {
+    throw new Error(`Failed to fetch trades: ${error.message}`);
+  }
+
+  return data;
+}
+
 interface TradeEntry {
   id: string;
   type: "trade" | "alert";
@@ -86,15 +117,39 @@ interface TradeEntry {
 }
 
 export default function TradesTablePage() {
+  // Trading Log filters
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedState, setSelectedState] = useState("all");
   const [selectedCoin, setSelectedCoin] = useState("all");
   const [sortBy, setSortBy] = useState<"newest" | "oldest">("newest");
   const [resultLimit, setResultLimit] = useState<number>(50);
+  const [dateRange, setDateRange] = useState("all");
+
+  // Trades tab filters
+  const [tradesSearchTerm, setTradesSearchTerm] = useState("");
+  const [selectedTrader, setSelectedTrader] = useState("all");
+  const [selectedSignalType, setSelectedSignalType] = useState("all");
+  const [selectedStatus, setSelectedStatus] = useState("all");
+  const [selectedActiveStatus, setSelectedActiveStatus] = useState("all");
+  const [tradesSortBy, setTradesSortBy] = useState<"newest" | "oldest">(
+    "newest"
+  );
+  const [tradesResultLimit, setTradesResultLimit] = useState<number>(50);
+  const [tradesDateRange, setTradesDateRange] = useState("all");
 
   const { data, isLoading, error } = useQuery({
     queryKey: ["trading_log"],
     queryFn: fetchTradingLogData,
+    refetchInterval: 30000,
+  });
+
+  const {
+    data: tradesData,
+    isLoading: tradesLoading,
+    error: tradesError,
+  } = useQuery({
+    queryKey: ["trades"],
+    queryFn: fetchTradesData,
     refetchInterval: 30000,
   });
 
@@ -169,7 +224,86 @@ export default function TradesTablePage() {
     return Array.from(uniqueCoins).sort();
   }, [allEntries]);
 
-  // Filter and sort entries
+  // Get unique values for trades filters
+  const traders = useMemo((): string[] => {
+    if (!tradesData) return [];
+    const uniqueTraders = new Set(
+      tradesData
+        .filter((trade: TradesRow) => trade.trader)
+        .map((trade: TradesRow) => trade.trader)
+    );
+    return Array.from(uniqueTraders).sort();
+  }, [tradesData]);
+
+  const signalTypes = useMemo((): string[] => {
+    if (!tradesData) return [];
+    const uniqueSignalTypes = new Set(
+      tradesData
+        .filter((trade: TradesRow) => trade.signal_type)
+        .map((trade: TradesRow) => trade.signal_type)
+    );
+    return Array.from(uniqueSignalTypes).sort();
+  }, [tradesData]);
+
+  const statuses = useMemo((): string[] => {
+    if (!tradesData) return [];
+    const uniqueStatuses = new Set(
+      tradesData
+        .filter((trade: TradesRow) => trade.status)
+        .map((trade: TradesRow) => trade.status.toString())
+    );
+    return Array.from(uniqueStatuses).sort();
+  }, [tradesData]);
+
+  // Date range helper function
+  const getDateRange = (range: string) => {
+    const now = new Date();
+    const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+
+    switch (range) {
+      case "today":
+        return {
+          from: today,
+          to: new Date(today.getTime() + 24 * 60 * 60 * 1000 - 1),
+        };
+      case "yesterday":
+        const yesterday = new Date(today.getTime() - 24 * 60 * 60 * 1000);
+        return {
+          from: yesterday,
+          to: new Date(yesterday.getTime() + 24 * 60 * 60 * 1000 - 1),
+        };
+      case "7days":
+        const sevenDaysAgo = new Date(
+          today.getTime() - 7 * 24 * 60 * 60 * 1000
+        );
+        return { from: sevenDaysAgo, to: now };
+      case "30days":
+        const thirtyDaysAgo = new Date(
+          today.getTime() - 30 * 24 * 60 * 60 * 1000
+        );
+        return { from: thirtyDaysAgo, to: now };
+      case "7daysago":
+        const sevenDaysAgoStart = new Date(
+          today.getTime() - 7 * 24 * 60 * 60 * 1000
+        );
+        return {
+          from: sevenDaysAgoStart,
+          to: new Date(sevenDaysAgoStart.getTime() + 24 * 60 * 60 * 1000 - 1),
+        };
+      case "30daysago":
+        const thirtyDaysAgoStart = new Date(
+          today.getTime() - 30 * 24 * 60 * 60 * 1000
+        );
+        return {
+          from: thirtyDaysAgoStart,
+          to: new Date(thirtyDaysAgoStart.getTime() + 24 * 60 * 60 * 1000 - 1),
+        };
+      default:
+        return null;
+    }
+  };
+
+  // Filter and sort entries for Trading Log
   const filteredEntries = useMemo(() => {
     const filtered = allEntries.filter((entry: TradeEntry) => {
       const matchesSearch =
@@ -182,7 +316,14 @@ export default function TradesTablePage() {
 
       const matchesCoin = selectedCoin === "all" || entry.coin === selectedCoin;
 
-      return matchesSearch && matchesState && matchesCoin;
+      // Date range filtering
+      const entryDate = new Date(entry.timestamp);
+      const dateRangeFilter = getDateRange(dateRange);
+      const matchesDateRange =
+        !dateRangeFilter ||
+        (entryDate >= dateRangeFilter.from && entryDate <= dateRangeFilter.to);
+
+      return matchesSearch && matchesState && matchesCoin && matchesDateRange;
     });
 
     const sorted = filtered.sort((a: TradeEntry, b: TradeEntry) => {
@@ -200,6 +341,70 @@ export default function TradesTablePage() {
     selectedCoin,
     sortBy,
     resultLimit,
+    dateRange,
+  ]);
+
+  // Filter and sort trades data
+  const filteredTrades = useMemo(() => {
+    if (!tradesData) return [];
+
+    const filtered = tradesData.filter((trade: TradesRow) => {
+      const matchesSearch =
+        tradesSearchTerm === "" ||
+        trade.content.toLowerCase().includes(tradesSearchTerm.toLowerCase()) ||
+        trade.trader.toLowerCase().includes(tradesSearchTerm.toLowerCase());
+
+      const matchesTrader =
+        selectedTrader === "all" || trade.trader === selectedTrader;
+
+      const matchesSignalType =
+        selectedSignalType === "all" ||
+        trade.signal_type === selectedSignalType;
+
+      const matchesStatus =
+        selectedStatus === "all" || trade.status.toString() === selectedStatus;
+
+      const matchesActiveStatus =
+        selectedActiveStatus === "all" ||
+        (selectedActiveStatus === "active" && trade.is_active) ||
+        (selectedActiveStatus === "inactive" && !trade.is_active);
+
+      // Date range filtering
+      const tradeDate = new Date(trade.timestamp);
+      const tradesDateRangeFilter = getDateRange(tradesDateRange);
+      const matchesDateRange =
+        !tradesDateRangeFilter ||
+        (tradeDate >= tradesDateRangeFilter.from &&
+          tradeDate <= tradesDateRangeFilter.to);
+
+      return (
+        matchesSearch &&
+        matchesTrader &&
+        matchesSignalType &&
+        matchesStatus &&
+        matchesActiveStatus &&
+        matchesDateRange
+      );
+    });
+
+    const sorted = filtered.sort((a: TradesRow, b: TradesRow) => {
+      const dateA = new Date(a.timestamp).getTime();
+      const dateB = new Date(b.timestamp).getTime();
+      return tradesSortBy === "newest" ? dateB - dateA : dateA - dateB;
+    });
+
+    // Apply result limit
+    return sorted.slice(0, tradesResultLimit);
+  }, [
+    tradesData,
+    tradesSearchTerm,
+    selectedTrader,
+    selectedSignalType,
+    selectedStatus,
+    selectedActiveStatus,
+    tradesSortBy,
+    tradesResultLimit,
+    tradesDateRange,
   ]);
 
   const getStateFromSignal = (trade: Trade, alert?: Alert) => {
@@ -274,249 +479,629 @@ export default function TradesTablePage() {
           <p className="text-gray-400 text-lg">
             Complete trade log with entry signals and follow-up alerts
           </p>
-          <div className="mt-4 flex flex-wrap gap-4 text-sm text-gray-500">
-            <div className="flex items-center gap-2">
-              <div className="w-3 h-3 rounded-full bg-blue-500"></div>
-              <span>Entry Signal</span>
-            </div>
-            <div className="flex items-center gap-2">
-              <div className="w-3 h-3 rounded-full bg-green-500"></div>
-              <span>First Follow-up</span>
-            </div>
-            <div className="flex items-center gap-2">
-              <div className="w-3 h-3 rounded-full bg-orange-500"></div>
-              <span>Update</span>
-            </div>
-            <div className="flex items-center gap-2">
-              <div className="w-3 h-3 rounded-full bg-blue-500"></div>
-              <span>Latest</span>
-            </div>
-          </div>
         </div>
 
-        {/* Search and Filter Controls */}
-        <div className="mb-6 space-y-4">
-          <div className="flex flex-col sm:flex-row gap-4">
-            <div className="flex-1 relative">
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
-              <Input
-                placeholder="Search trades, coins, or content..."
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                className="pl-10 bg-gray-900/50 border-gray-700 text-white"
-              />
-            </div>
-            <div className="flex flex-col sm:flex-row gap-4">
-              <Select value={selectedState} onValueChange={setSelectedState}>
-                <SelectTrigger className="w-full sm:w-[180px] bg-gray-900/50 border-gray-700 text-white">
-                  <Filter className="w-4 h-4 mr-2" />
-                  <SelectValue placeholder="Filter by type" />
-                </SelectTrigger>
-                <SelectContent className="bg-gray-900 border-gray-700">
-                  <SelectItem value="all">All Types</SelectItem>
-                  {tradeTypes.map((type) => (
-                    <SelectItem key={type} value={type}>
-                      {type}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-              <Select value={selectedCoin} onValueChange={setSelectedCoin}>
-                <SelectTrigger className="w-full sm:w-[140px] bg-gray-900/50 border-gray-700 text-white">
-                  <Filter className="w-4 h-4 mr-2" />
-                  <SelectValue placeholder="Coin" />
-                </SelectTrigger>
-                <SelectContent className="bg-gray-900 border-gray-700">
-                  <SelectItem value="all">All Coins</SelectItem>
-                  {coins.map((coin) => (
-                    <SelectItem key={coin} value={coin}>
-                      {coin}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+        <Tabs defaultValue="trading-log" className="w-full">
+          <TabsList className="grid w-full grid-cols-2 bg-gray-900/50 border-gray-700">
+            <TabsTrigger
+              value="trading-log"
+              className="data-[state=active]:bg-gray-800"
+            >
+              Trading Log
+            </TabsTrigger>
+            <TabsTrigger
+              value="trades"
+              className="data-[state=active]:bg-gray-800"
+            >
+              Trades
+            </TabsTrigger>
+          </TabsList>
 
-              <Select
-                value={sortBy}
-                onValueChange={(value) =>
-                  setSortBy(value as "newest" | "oldest")
-                }
-              >
-                <SelectTrigger className="w-full sm:w-[160px] bg-gray-900/50 border-gray-700 text-white">
-                  <ArrowUpDown className="w-4 h-4 mr-2" />
-                  <SelectValue placeholder="Sort by date" />
-                </SelectTrigger>
-                <SelectContent className="bg-gray-900 border-gray-700">
-                  <SelectItem value="newest">Newest First</SelectItem>
-                  <SelectItem value="oldest">Oldest First</SelectItem>
-                </SelectContent>
-              </Select>
-              <Select
-                value={resultLimit.toString()}
-                onValueChange={(value) => setResultLimit(parseInt(value))}
-              >
-                <SelectTrigger className="w-full sm:w-[120px] bg-gray-900/50 border-gray-700 text-white">
-                  <Filter className="w-4 h-4 mr-2" />
-                  <SelectValue placeholder="Show" />
-                </SelectTrigger>
-                <SelectContent className="bg-gray-900 border-gray-700">
-                  <SelectItem value="25">Show 25</SelectItem>
-                  <SelectItem value="50">Show 50</SelectItem>
-                  <SelectItem value="100">Show 100</SelectItem>
-                  <SelectItem value="200">Show 200</SelectItem>
-                  <SelectItem value="500">Show 500</SelectItem>
-                  <SelectItem value="9999">Show All</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-          </div>
-        </div>
-
-        {/* Trade Log Table */}
-        <Card className="bg-gray-900/50 border-gray-700 shadow-2xl">
-          <CardHeader className="border-b border-gray-700">
-            <CardTitle className="text-white flex items-center justify-between">
+          <TabsContent value="trading-log" className="mt-6">
+            <div className="mt-4 flex flex-wrap gap-4 text-sm text-gray-500 mb-6">
               <div className="flex items-center gap-2">
-                <Activity className="w-5 h-5" />
-                Trade Log ({filteredEntries.length} entries)
+                <div className="w-3 h-3 rounded-full bg-blue-500"></div>
+                <span>Entry Signal</span>
               </div>
-              <div className="text-sm text-gray-400">
-                {
-                  filteredEntries.filter((entry) => entry.type === "alert")
-                    .length
-                }{" "}
-                follow-ups total
+              <div className="flex items-center gap-2">
+                <div className="w-3 h-3 rounded-full bg-green-500"></div>
+                <span>First Follow-up</span>
               </div>
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="p-0">
-            <div className="overflow-x-auto">
-              <Table>
-                <TableHeader>
-                  <TableRow className="border-gray-700 hover:bg-gray-800/50 bg-gray-800/30">
-                    <TableHead className="text-gray-300 w-[40px] font-semibold"></TableHead>
-                    <TableHead className="text-gray-300 font-semibold min-w-[120px]">
-                      Date/Time (UAE)
-                    </TableHead>
-                    <TableHead className="text-gray-300 font-semibold min-w-[300px]">
-                      Text of Signal
-                    </TableHead>
-                    <TableHead className="text-gray-300 font-semibold min-w-[100px]">
-                      Status
-                    </TableHead>
-                    <TableHead className="text-gray-300 font-semibold min-w-[80px]">
-                      Asset
-                    </TableHead>
-                    <TableHead className="text-gray-300 font-semibold min-w-[200px]">
-                      Action 1
-                    </TableHead>
-                    <TableHead className="text-gray-300 font-semibold min-w-[150px]">
-                      Action 2
-                    </TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {filteredEntries.map((entry: TradeEntry) => {
-                    return (
-                      <TableRow
-                        key={entry.id}
-                        className={`border-gray-700 hover:bg-gray-800/30 transition-colors ${
-                          entry.type === "alert"
-                            ? "bg-gradient-to-r from-slate-800/30 to-blue-900/20"
-                            : ""
-                        }`}
-                      >
-                        <TableCell>
-                          {entry.type === "alert" && (
-                            <div className="flex items-center justify-center">
-                              <div className="w-2 h-2 rounded-full bg-green-500" />
-                            </div>
-                          )}
-                        </TableCell>
-                        <TableCell className="font-mono text-sm text-gray-300">
-                          <div className="flex flex-col">
-                            <span className="font-medium">
-                              {formatInTimeZone(
-                                new Date(entry.timestamp),
-                                "Asia/Dubai",
-                                "MMM dd, yyyy"
-                              )}
-                            </span>
-                            <span className="text-xs text-gray-500">
-                              {formatInTimeZone(
-                                new Date(entry.timestamp),
-                                "Asia/Dubai",
-                                "HH:mm"
-                              )}
-                            </span>
-                          </div>
-                        </TableCell>
-                        <TableCell className="max-w-[300px]">
-                          <div className="flex items-start gap-2">
-                            {entry.type === "alert" && (
-                              <div className="text-gray-500 text-xs font-mono mt-0.5">
-                                └─
-                              </div>
-                            )}
-                            <div
-                              className="text-gray-200 text-sm leading-relaxed"
-                              title={entry.content}
-                            >
-                              {entry.content}
-                            </div>
-                          </div>
-                        </TableCell>
-                        <TableCell>
-                          <Badge
-                            variant="outline"
-                            className={
-                              entry.type === "trade"
-                                ? "border-blue-500/50 text-blue-300"
-                                : "border-green-500/50 text-green-300"
-                            }
-                          >
-                            {entry.type === "trade"
-                              ? "Entry"
-                              : getStateFromSignal(entry.trade!, entry.alert)}
-                          </Badge>
-                        </TableCell>
-                        <TableCell>
-                          <span className="text-blue-300 font-medium">
-                            {entry.coin || "N/A"}
-                          </span>
-                        </TableCell>
-                        <TableCell className="max-w-[250px]">
-                          <div className="text-yellow-300 text-sm truncate">
-                            {entry.action_1 || "-"}
-                          </div>
-                        </TableCell>
-                        <TableCell className="max-w-[250px]">
-                          <div className="text-red-300 text-sm truncate">
-                            {entry.action_2 || "-"}
-                          </div>
-                        </TableCell>
-                      </TableRow>
-                    );
-                  })}
-                  {filteredEntries.length === 0 && (
-                    <TableRow>
-                      <TableCell colSpan={7} className="text-center py-8">
-                        <TrendingUp className="w-12 h-12 text-gray-500 mx-auto mb-4" />
-                        <p className="text-gray-400">
-                          {searchTerm ||
-                          selectedState !== "all" ||
-                          selectedCoin !== "all"
-                            ? "No trades match your filters"
-                            : "No trades available"}
-                        </p>
-                      </TableCell>
-                    </TableRow>
-                  )}
-                </TableBody>
-              </Table>
+              <div className="flex items-center gap-2">
+                <div className="w-3 h-3 rounded-full bg-orange-500"></div>
+                <span>Update</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <div className="w-3 h-3 rounded-full bg-blue-500"></div>
+                <span>Latest</span>
+              </div>
             </div>
-          </CardContent>
-        </Card>
+
+            {/* Search and Filter Controls */}
+            <div className="mb-6">
+              <div className="flex flex-wrap gap-4 items-center">
+                <div className="flex-1 min-w-[250px] relative">
+                  <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
+                  <Input
+                    placeholder="Search trades, coins, or content..."
+                    value={searchTerm}
+                    onChange={(e) => setSearchTerm(e.target.value)}
+                    className="pl-10 bg-gray-900/50 border-gray-700 text-white"
+                  />
+                </div>
+
+                <Select value={selectedState} onValueChange={setSelectedState}>
+                  <SelectTrigger className="w-[160px] bg-gray-900/50 border-gray-700 text-white">
+                    <Filter className="w-4 h-4 mr-2" />
+                    <SelectValue placeholder="Type" />
+                  </SelectTrigger>
+                  <SelectContent className="bg-gray-900 border-gray-700">
+                    <SelectItem value="all">All Types</SelectItem>
+                    {tradeTypes.map((type) => (
+                      <SelectItem key={type} value={type}>
+                        {type}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+
+                <Select value={selectedCoin} onValueChange={setSelectedCoin}>
+                  <SelectTrigger className="w-[120px] bg-gray-900/50 border-gray-700 text-white">
+                    <Filter className="w-4 h-4 mr-2" />
+                    <SelectValue placeholder="Coin" />
+                  </SelectTrigger>
+                  <SelectContent className="bg-gray-900 border-gray-700">
+                    <SelectItem value="all">All Coins</SelectItem>
+                    {coins.map((coin) => (
+                      <SelectItem key={coin} value={coin}>
+                        {coin}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+
+                <Select value={dateRange} onValueChange={setDateRange}>
+                  <SelectTrigger className="w-[150px] bg-gray-900/50 border-gray-700 text-white">
+                    <Filter className="w-4 h-4 mr-2" />
+                    <SelectValue placeholder="Date Range" />
+                  </SelectTrigger>
+                  <SelectContent className="bg-gray-900 border-gray-700">
+                    <SelectItem value="all">All Time</SelectItem>
+                    <SelectItem value="today">Today</SelectItem>
+                    <SelectItem value="yesterday">Yesterday</SelectItem>
+                    <SelectItem value="7days">Last 7 Days</SelectItem>
+                    <SelectItem value="30days">Last 30 Days</SelectItem>
+                  </SelectContent>
+                </Select>
+
+                <Select
+                  value={sortBy}
+                  onValueChange={(value) =>
+                    setSortBy(value as "newest" | "oldest")
+                  }
+                >
+                  <SelectTrigger className="w-[140px] bg-gray-900/50 border-gray-700 text-white">
+                    <ArrowUpDown className="w-4 h-4 mr-2" />
+                    <SelectValue placeholder="Sort" />
+                  </SelectTrigger>
+                  <SelectContent className="bg-gray-900 border-gray-700">
+                    <SelectItem value="newest">Newest</SelectItem>
+                    <SelectItem value="oldest">Oldest</SelectItem>
+                  </SelectContent>
+                </Select>
+
+                <Select
+                  value={resultLimit.toString()}
+                  onValueChange={(value) => setResultLimit(parseInt(value))}
+                >
+                  <SelectTrigger className="w-[100px] bg-gray-900/50 border-gray-700 text-white">
+                    <Filter className="w-4 h-4 mr-2" />
+                    <SelectValue placeholder="Show" />
+                  </SelectTrigger>
+                  <SelectContent className="bg-gray-900 border-gray-700">
+                    <SelectItem value="25">25</SelectItem>
+                    <SelectItem value="50">50</SelectItem>
+                    <SelectItem value="100">100</SelectItem>
+                    <SelectItem value="200">200</SelectItem>
+                    <SelectItem value="500">500</SelectItem>
+                    <SelectItem value="9999">All</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+
+            {/* Trade Log Table */}
+            <Card className="bg-gray-900/50 border-gray-700 shadow-2xl">
+              <CardHeader className="border-b border-gray-700">
+                <CardTitle className="text-white flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <Activity className="w-5 h-5" />
+                    Trade Log ({filteredEntries.length} entries)
+                  </div>
+                  <div className="text-sm text-gray-400">
+                    {
+                      filteredEntries.filter((entry) => entry.type === "alert")
+                        .length
+                    }{" "}
+                    follow-ups total
+                  </div>
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="p-0">
+                <div className="overflow-x-auto">
+                  <Table>
+                    <TableHeader>
+                      <TableRow className="border-gray-700 hover:bg-gray-800/50 bg-gray-800/30">
+                        <TableHead className="text-gray-300 w-[40px] font-semibold"></TableHead>
+                        <TableHead className="text-gray-300 font-semibold min-w-[120px]">
+                          Date/Time (UAE)
+                        </TableHead>
+                        <TableHead className="text-gray-300 font-semibold min-w-[300px]">
+                          Text of Signal
+                        </TableHead>
+                        <TableHead className="text-gray-300 font-semibold min-w-[100px]">
+                          Status
+                        </TableHead>
+                        <TableHead className="text-gray-300 font-semibold min-w-[80px]">
+                          Asset
+                        </TableHead>
+                        <TableHead className="text-gray-300 font-semibold min-w-[200px]">
+                          Action 1
+                        </TableHead>
+                        <TableHead className="text-gray-300 font-semibold min-w-[150px]">
+                          Action 2
+                        </TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {filteredEntries.map((entry: TradeEntry) => {
+                        return (
+                          <TableRow
+                            key={entry.id}
+                            className={`border-gray-700 hover:bg-gray-800/30 transition-colors ${
+                              entry.type === "alert"
+                                ? "bg-gradient-to-r from-slate-800/30 to-blue-900/20"
+                                : ""
+                            }`}
+                          >
+                            <TableCell>
+                              {entry.type === "alert" && (
+                                <div className="flex items-center justify-center">
+                                  <div className="w-2 h-2 rounded-full bg-green-500" />
+                                </div>
+                              )}
+                            </TableCell>
+                            <TableCell className="font-mono text-sm text-gray-300">
+                              <div className="flex flex-col">
+                                <span className="font-medium">
+                                  {formatInTimeZone(
+                                    new Date(entry.timestamp),
+                                    "Asia/Dubai",
+                                    "MMM dd, yyyy"
+                                  )}
+                                </span>
+                                <span className="text-xs text-gray-500">
+                                  {formatInTimeZone(
+                                    new Date(entry.timestamp),
+                                    "Asia/Dubai",
+                                    "HH:mm"
+                                  )}
+                                </span>
+                              </div>
+                            </TableCell>
+                            <TableCell className="max-w-[300px]">
+                              <div className="flex items-start gap-2">
+                                {entry.type === "alert" && (
+                                  <div className="text-gray-500 text-xs font-mono mt-0.5">
+                                    └─
+                                  </div>
+                                )}
+                                <div
+                                  className="text-gray-200 text-sm leading-relaxed"
+                                  title={entry.content}
+                                >
+                                  {entry.content}
+                                </div>
+                              </div>
+                            </TableCell>
+                            <TableCell>
+                              <Badge
+                                variant="outline"
+                                className={
+                                  entry.type === "trade"
+                                    ? "border-blue-500/50 text-blue-300"
+                                    : "border-green-500/50 text-green-300"
+                                }
+                              >
+                                {entry.type === "trade"
+                                  ? "Entry"
+                                  : getStateFromSignal(
+                                      entry.trade!,
+                                      entry.alert
+                                    )}
+                              </Badge>
+                            </TableCell>
+                            <TableCell>
+                              <span className="text-blue-300 font-medium">
+                                {entry.coin || "N/A"}
+                              </span>
+                            </TableCell>
+                            <TableCell className="max-w-[250px]">
+                              <div className="text-yellow-300 text-sm truncate">
+                                {entry.action_1 || "-"}
+                              </div>
+                            </TableCell>
+                            <TableCell className="max-w-[250px]">
+                              <div className="text-red-300 text-sm truncate">
+                                {entry.action_2 || "-"}
+                              </div>
+                            </TableCell>
+                          </TableRow>
+                        );
+                      })}
+                      {filteredEntries.length === 0 && (
+                        <TableRow>
+                          <TableCell colSpan={7} className="text-center py-8">
+                            <TrendingUp className="w-12 h-12 text-gray-500 mx-auto mb-4" />
+                            <p className="text-gray-400">
+                              {searchTerm ||
+                              selectedState !== "all" ||
+                              selectedCoin !== "all" ||
+                              dateRange !== "all"
+                                ? "No trades match your filters"
+                                : "No trades available"}
+                            </p>
+                          </TableCell>
+                        </TableRow>
+                      )}
+                    </TableBody>
+                  </Table>
+                </div>
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          <TabsContent value="trades" className="mt-6">
+            {tradesLoading ? (
+              <div className="flex items-center justify-center py-8">
+                <LoadingSpinner />
+              </div>
+            ) : tradesError ? (
+              <Card className="bg-red-950/20 border-red-500/30">
+                <CardContent className="p-6 text-center">
+                  <AlertTriangle className="w-12 h-12 text-red-400 mx-auto mb-4" />
+                  <h2 className="text-xl font-semibold text-red-200 mb-2">
+                    Error Loading Trades
+                  </h2>
+                  <p className="text-red-300">
+                    {tradesError instanceof Error
+                      ? tradesError.message
+                      : "Unknown error occurred"}
+                  </p>
+                </CardContent>
+              </Card>
+            ) : (
+              <>
+                {/* Trades Search and Filter Controls */}
+                <div className="mb-6">
+                  <div className="flex flex-wrap gap-4 items-center">
+                    <div className="flex-1 min-w-[250px] relative">
+                      <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
+                      <Input
+                        placeholder="Search trades, content, or trader..."
+                        value={tradesSearchTerm}
+                        onChange={(e) => setTradesSearchTerm(e.target.value)}
+                        className="pl-10 bg-gray-900/50 border-gray-700 text-white"
+                      />
+                    </div>
+
+                    <Select
+                      value={selectedTrader}
+                      onValueChange={setSelectedTrader}
+                    >
+                      <SelectTrigger className="w-[140px] bg-gray-900/50 border-gray-700 text-white">
+                        <Filter className="w-4 h-4 mr-2" />
+                        <SelectValue placeholder="Trader" />
+                      </SelectTrigger>
+                      <SelectContent className="bg-gray-900 border-gray-700">
+                        <SelectItem value="all">All Traders</SelectItem>
+                        {traders.map((trader) => (
+                          <SelectItem key={trader} value={trader}>
+                            {trader}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+
+                    <Select
+                      value={selectedSignalType}
+                      onValueChange={setSelectedSignalType}
+                    >
+                      <SelectTrigger className="w-[160px] bg-gray-900/50 border-gray-700 text-white">
+                        <Filter className="w-4 h-4 mr-2" />
+                        <SelectValue placeholder="Signal" />
+                      </SelectTrigger>
+                      <SelectContent className="bg-gray-900 border-gray-700">
+                        <SelectItem value="all">All Types</SelectItem>
+                        {signalTypes.map((type) => (
+                          <SelectItem key={type} value={type}>
+                            {type}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+
+                    <Select
+                      value={selectedStatus}
+                      onValueChange={setSelectedStatus}
+                    >
+                      <SelectTrigger className="w-[120px] bg-gray-900/50 border-gray-700 text-white">
+                        <Filter className="w-4 h-4 mr-2" />
+                        <SelectValue placeholder="Status" />
+                      </SelectTrigger>
+                      <SelectContent className="bg-gray-900 border-gray-700">
+                        <SelectItem value="all">All Status</SelectItem>
+                        {statuses.map((status) => (
+                          <SelectItem key={status} value={status}>
+                            {status}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+
+                    <Select
+                      value={selectedActiveStatus}
+                      onValueChange={setSelectedActiveStatus}
+                    >
+                      <SelectTrigger className="w-[120px] bg-gray-900/50 border-gray-700 text-white">
+                        <Filter className="w-4 h-4 mr-2" />
+                        <SelectValue placeholder="Active" />
+                      </SelectTrigger>
+                      <SelectContent className="bg-gray-900 border-gray-700">
+                        <SelectItem value="all">All</SelectItem>
+                        <SelectItem value="active">Active</SelectItem>
+                        <SelectItem value="inactive">Inactive</SelectItem>
+                      </SelectContent>
+                    </Select>
+
+                    <Select
+                      value={tradesDateRange}
+                      onValueChange={setTradesDateRange}
+                    >
+                      <SelectTrigger className="w-[150px] bg-gray-900/50 border-gray-700 text-white">
+                        <Filter className="w-4 h-4 mr-2" />
+                        <SelectValue placeholder="Date Range" />
+                      </SelectTrigger>
+                      <SelectContent className="bg-gray-900 border-gray-700">
+                        <SelectItem value="all">All Time</SelectItem>
+                        <SelectItem value="today">Today</SelectItem>
+                        <SelectItem value="yesterday">Yesterday</SelectItem>
+                        <SelectItem value="7days">Last 7 Days</SelectItem>
+                        <SelectItem value="30days">Last 30 Days</SelectItem>
+                      </SelectContent>
+                    </Select>
+
+                    <Select
+                      value={tradesSortBy}
+                      onValueChange={(value) =>
+                        setTradesSortBy(value as "newest" | "oldest")
+                      }
+                    >
+                      <SelectTrigger className="w-[140px] bg-gray-900/50 border-gray-700 text-white">
+                        <ArrowUpDown className="w-4 h-4 mr-2" />
+                        <SelectValue placeholder="Sort" />
+                      </SelectTrigger>
+                      <SelectContent className="bg-gray-900 border-gray-700">
+                        <SelectItem value="newest">Newest</SelectItem>
+                        <SelectItem value="oldest">Oldest</SelectItem>
+                      </SelectContent>
+                    </Select>
+
+                    <Select
+                      value={tradesResultLimit.toString()}
+                      onValueChange={(value) =>
+                        setTradesResultLimit(parseInt(value))
+                      }
+                    >
+                      <SelectTrigger className="w-[100px] bg-gray-900/50 border-gray-700 text-white">
+                        <Filter className="w-4 h-4 mr-2" />
+                        <SelectValue placeholder="Show" />
+                      </SelectTrigger>
+                      <SelectContent className="bg-gray-900 border-gray-700">
+                        <SelectItem value="25">25</SelectItem>
+                        <SelectItem value="50">50</SelectItem>
+                        <SelectItem value="100">100</SelectItem>
+                        <SelectItem value="200">200</SelectItem>
+                        <SelectItem value="500">500</SelectItem>
+                        <SelectItem value="9999">All</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
+
+                <Card className="bg-gray-900/50 border-gray-700 shadow-2xl">
+                  <CardHeader className="border-b border-gray-700">
+                    <CardTitle className="text-white flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <Activity className="w-5 h-5" />
+                        Trades ({filteredTrades.length} of{" "}
+                        {tradesData?.length || 0} entries)
+                      </div>
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent className="p-0">
+                    <div className="overflow-x-auto">
+                      <Table>
+                        <TableHeader>
+                          <TableRow className="border-gray-700 hover:bg-gray-800/50 bg-gray-800/30">
+                            <TableHead className="text-gray-300 font-semibold min-w-[120px]">
+                              Date/Time (UAE)
+                            </TableHead>
+                            <TableHead className="text-gray-300 font-semibold min-w-[150px]">
+                              Trader
+                            </TableHead>
+                            <TableHead className="text-gray-300 font-semibold min-w-[250px]">
+                              Content
+                            </TableHead>
+                            <TableHead className="text-gray-300 font-semibold min-w-[120px]">
+                              Signal Type
+                            </TableHead>
+                            <TableHead className="text-gray-300 font-semibold min-w-[100px]">
+                              Status
+                            </TableHead>
+                            <TableHead className="text-gray-300 font-semibold min-w-[100px]">
+                              Active
+                            </TableHead>
+                            <TableHead className="text-gray-300 font-semibold min-w-[100px]">
+                              Exit Price
+                            </TableHead>
+                            <TableHead className="text-gray-300 font-semibold min-w-[100px]">
+                              P&L (USD)
+                            </TableHead>
+                          </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                          {filteredTrades.map((trade: TradesRow) => (
+                            <TableRow
+                              key={trade.id}
+                              className="border-gray-700 hover:bg-gray-800/30 transition-colors"
+                            >
+                              <TableCell className="font-mono text-sm text-gray-300">
+                                <div className="flex flex-col">
+                                  <span className="font-medium">
+                                    {formatInTimeZone(
+                                      new Date(trade.timestamp),
+                                      "Asia/Dubai",
+                                      "MMM dd, yyyy"
+                                    )}
+                                  </span>
+                                  <span className="text-xs text-gray-500">
+                                    {formatInTimeZone(
+                                      new Date(trade.timestamp),
+                                      "Asia/Dubai",
+                                      "HH:mm"
+                                    )}
+                                  </span>
+                                </div>
+                              </TableCell>
+                              <TableCell>
+                                <Badge
+                                  variant="outline"
+                                  className="border-purple-500/50 text-purple-300"
+                                >
+                                  {trade.trader}
+                                </Badge>
+                              </TableCell>
+                              <TableCell className="max-w-[250px]">
+                                <div
+                                  className="text-gray-200 text-sm leading-relaxed truncate"
+                                  title={trade.content}
+                                >
+                                  {trade.content}
+                                </div>
+                              </TableCell>
+                              <TableCell>
+                                <Badge
+                                  variant="outline"
+                                  className={
+                                    trade.signal_type === "NEW_TRADE"
+                                      ? "border-blue-500/50 text-blue-300"
+                                      : trade.signal_type === "UPDATE_SL"
+                                      ? "border-yellow-500/50 text-yellow-300"
+                                      : trade.signal_type === "UPDATE_TP"
+                                      ? "border-green-500/50 text-green-300"
+                                      : trade.signal_type === "CLOSE_POSITION"
+                                      ? "border-red-500/50 text-red-300"
+                                      : "border-gray-500/50 text-gray-300"
+                                  }
+                                >
+                                  {trade.signal_type}
+                                </Badge>
+                              </TableCell>
+                              <TableCell>
+                                <Badge
+                                  variant="outline"
+                                  className={(() => {
+                                    const status = trade.status
+                                      ?.toString()
+                                      .trim()
+                                      .toUpperCase();
+                                    switch (status) {
+                                      case "ACTIVE":
+                                        return "border-green-500/50 text-green-300";
+                                      case "CLOSED":
+                                        return "border-red-500/50 text-red-300";
+                                      case "PENDING":
+                                        return "border-yellow-500/50 text-yellow-300";
+                                      default:
+                                        return "border-gray-500/50 text-gray-400";
+                                    }
+                                  })()}
+                                >
+                                  {trade.status}
+                                </Badge>
+                              </TableCell>
+                              <TableCell>
+                                <Badge
+                                  variant="outline"
+                                  className={
+                                    trade.is_active
+                                      ? "border-green-500/50 text-green-300"
+                                      : "border-red-500/50 text-red-300"
+                                  }
+                                >
+                                  {trade.is_active ? "True" : "False"}
+                                </Badge>
+                              </TableCell>
+                              <TableCell className="text-blue-300 font-medium">
+                                {trade.exit_price
+                                  ? `$${trade.exit_price.toFixed(4)}`
+                                  : "-"}
+                              </TableCell>
+                              <TableCell
+                                className={`font-medium ${
+                                  trade.pnl_usd
+                                    ? trade.pnl_usd > 0
+                                      ? "text-green-300"
+                                      : "text-red-300"
+                                    : "text-gray-400"
+                                }`}
+                              >
+                                {trade.pnl_usd
+                                  ? `$${trade.pnl_usd.toFixed(2)}`
+                                  : "-"}
+                              </TableCell>
+                            </TableRow>
+                          ))}
+                          {filteredTrades.length === 0 && (
+                            <TableRow>
+                              <TableCell
+                                colSpan={8}
+                                className="text-center py-8"
+                              >
+                                <TrendingUp className="w-12 h-12 text-gray-500 mx-auto mb-4" />
+                                <p className="text-gray-400">
+                                  {tradesSearchTerm ||
+                                  selectedTrader !== "all" ||
+                                  selectedSignalType !== "all" ||
+                                  selectedStatus !== "all" ||
+                                  selectedActiveStatus !== "all" ||
+                                  tradesDateRange !== "all"
+                                    ? "No trades match your filters"
+                                    : "No trades available"}
+                                </p>
+                              </TableCell>
+                            </TableRow>
+                          )}
+                        </TableBody>
+                      </Table>
+                    </div>
+                  </CardContent>
+                </Card>
+              </>
+            )}
+          </TabsContent>
+        </Tabs>
       </div>
     </div>
   );
