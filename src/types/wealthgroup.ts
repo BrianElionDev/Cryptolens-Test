@@ -4,6 +4,26 @@ export interface Alert {
   trade: string;
   timestamp: string;
   content: string;
+  parsed_alert?: ParsedAlert;
+}
+
+// New parsed alert format
+export interface ActionDetermined {
+  action_type: string;
+  action_description: string;
+  binance_action: string;
+  position_status: string;
+  reason: string;
+}
+
+export interface ParsedAlert {
+  alert_id: number;
+  original_content: string;
+  processed_at: string;
+  action_determined: ActionDetermined;
+  original_trade_id: number;
+  coin_symbol: string;
+  trader: string;
 }
 
 // New JSON format signal

@@ -373,12 +373,22 @@ export default function WealthgroupPage() {
                         </div>
                       </div>
                       <div className="flex items-center justify-between">
-                        <Badge
-                          variant="outline"
-                          className="border-gray-500/50 text-gray-300 text-xs"
-                        >
-                          {alert.trade}
-                        </Badge>
+                        <div className="flex items-center space-x-2">
+                          <Badge
+                            variant="outline"
+                            className="border-gray-500/50 text-gray-300 text-xs"
+                          >
+                            {alert.trade}
+                          </Badge>
+                          {alert.parsed_alert && (
+                            <Badge
+                              variant="outline"
+                              className="text-xs border-orange-500/50 text-orange-300"
+                            >
+                              🔔 Parsed
+                            </Badge>
+                          )}
+                        </div>
                         <Button
                           variant="ghost"
                           size="sm"
@@ -392,7 +402,7 @@ export default function WealthgroupPage() {
                       </div>
                     </div>
                   </CardHeader>
-                  <CardContent className="pt-0">
+                  <CardContent className="pt-0 space-y-2">
                     <p
                       className="text-gray-200 text-sm leading-relaxed overflow-hidden text-ellipsis"
                       style={{
@@ -403,6 +413,106 @@ export default function WealthgroupPage() {
                     >
                       {alert.content}
                     </p>
+                    {alert.parsed_alert && (
+                      // Enhanced Parsed Alert Card
+                      <div className="mt-3 bg-gray-800/50 p-4 rounded border border-gray-600">
+                        <div className="space-y-3">
+                          {/* Header */}
+                          <div className="flex items-center justify-between pb-2 border-b border-gray-600">
+                            <span className="text-sm font-medium text-orange-300">
+                              🔔 Parsed Alert
+                            </span>
+                            <div className="flex items-center gap-2">
+                              <span className="text-sm font-semibold text-blue-300">
+                                {alert.parsed_alert.coin_symbol}
+                              </span>
+                              <span className="text-xs text-gray-400">
+                                ID: {alert.parsed_alert.alert_id}
+                              </span>
+                            </div>
+                          </div>
+
+                          {/* Action Details */}
+                          <div className="space-y-2 text-sm">
+                            <div className="flex justify-between items-center">
+                              <span className="text-gray-400 min-w-[80px]">
+                                Action:
+                              </span>
+                              <span className="text-yellow-300 font-medium text-right">
+                                {alert.parsed_alert.action_determined.action_type
+                                  .replace(/_/g, " ")
+                                  .toUpperCase()}
+                              </span>
+                            </div>
+
+                            <div className="flex justify-between items-start">
+                              <span className="text-gray-400 min-w-[80px]">
+                                Description:
+                              </span>
+                              <span className="text-purple-300 font-medium text-right max-w-[200px]">
+                                {
+                                  alert.parsed_alert.action_determined
+                                    .action_description
+                                }
+                              </span>
+                            </div>
+
+                            <div className="flex justify-between items-center">
+                              <span className="text-gray-400 min-w-[80px]">
+                                Status:
+                              </span>
+                              <span
+                                className={`font-medium text-right ${
+                                  alert.parsed_alert.action_determined
+                                    .position_status === "ACTIVE"
+                                    ? "text-green-300"
+                                    : "text-red-300"
+                                }`}
+                              >
+                                {
+                                  alert.parsed_alert.action_determined
+                                    .position_status
+                                }
+                              </span>
+                            </div>
+
+                            <div className="flex justify-between items-center">
+                              <span className="text-gray-400 min-w-[80px]">
+                                Binance Action:
+                              </span>
+                              <span className="text-cyan-300 font-medium text-right">
+                                {
+                                  alert.parsed_alert.action_determined
+                                    .binance_action
+                                }
+                              </span>
+                            </div>
+
+                            {alert.parsed_alert.action_determined.reason && (
+                              <div className="flex justify-between items-start">
+                                <span className="text-gray-400 min-w-[80px]">
+                                  Reason:
+                                </span>
+                                <span className="text-gray-300 text-xs text-right max-w-[200px]">
+                                  {alert.parsed_alert.action_determined.reason}
+                                </span>
+                              </div>
+                            )}
+
+                            {alert.parsed_alert.original_trade_id && (
+                              <div className="flex justify-between items-center">
+                                <span className="text-gray-400 min-w-[80px]">
+                                  Trade ID:
+                                </span>
+                                <span className="text-indigo-300 font-medium text-right">
+                                  #{alert.parsed_alert.original_trade_id}
+                                </span>
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                    )}
                   </CardContent>
                 </Card>
               ))}
@@ -719,6 +829,54 @@ export default function WealthgroupPage() {
                                         <p className="text-xs text-gray-300">
                                           {alert.content}
                                         </p>
+                                        {alert.parsed_alert && (
+                                          <div className="mt-2 bg-gray-800/30 p-2 rounded border border-gray-600">
+                                            <div className="space-y-1">
+                                              <div className="flex items-center justify-between">
+                                                <span className="text-[10px] font-medium text-orange-300">
+                                                  🔔 Parsed Action
+                                                </span>
+                                                <span className="text-[10px] text-blue-300">
+                                                  {
+                                                    alert.parsed_alert
+                                                      .coin_symbol
+                                                  }
+                                                </span>
+                                              </div>
+                                              <div className="flex justify-between text-[10px]">
+                                                <span className="text-gray-400">
+                                                  Action:
+                                                </span>
+                                                <span className="text-yellow-300 font-medium">
+                                                  {alert.parsed_alert.action_determined.action_type
+                                                    .replace(/_/g, " ")
+                                                    .toUpperCase()}
+                                                </span>
+                                              </div>
+                                              <div className="flex justify-between text-[10px]">
+                                                <span className="text-gray-400">
+                                                  Status:
+                                                </span>
+                                                <span
+                                                  className={`font-medium ${
+                                                    alert.parsed_alert
+                                                      .action_determined
+                                                      .position_status ===
+                                                    "ACTIVE"
+                                                      ? "text-green-300"
+                                                      : "text-red-300"
+                                                  }`}
+                                                >
+                                                  {
+                                                    alert.parsed_alert
+                                                      .action_determined
+                                                      .position_status
+                                                  }
+                                                </span>
+                                              </div>
+                                            </div>
+                                          </div>
+                                        )}
                                       </div>
                                     </div>
                                   )
@@ -780,6 +938,52 @@ export default function WealthgroupPage() {
                     <p className="text-gray-200 text-sm leading-relaxed">
                       {alert.content}
                     </p>
+                    {alert.parsed_alert && (
+                      <div className="mt-3 bg-gray-800/50 p-3 rounded border border-gray-600">
+                        <div className="space-y-2">
+                          <div className="flex items-center justify-between pb-2 border-b border-gray-600">
+                            <span className="text-xs font-medium text-orange-300">
+                              🔔 Parsed Alert Details
+                            </span>
+                            <span className="text-xs text-gray-400">
+                              {alert.parsed_alert.coin_symbol}
+                            </span>
+                          </div>
+                          <div className="space-y-1 text-xs">
+                            <div className="flex justify-between">
+                              <span className="text-gray-400">Action:</span>
+                              <span className="text-yellow-300 font-medium">
+                                {alert.parsed_alert.action_determined.action_type
+                                  .replace(/_/g, " ")
+                                  .toUpperCase()}
+                              </span>
+                            </div>
+                            <div className="flex justify-between">
+                              <span className="text-gray-400">Status:</span>
+                              <span
+                                className={`font-medium ${
+                                  alert.parsed_alert.action_determined
+                                    .position_status === "ACTIVE"
+                                    ? "text-green-300"
+                                    : "text-red-300"
+                                }`}
+                              >
+                                {
+                                  alert.parsed_alert.action_determined
+                                    .position_status
+                                }
+                              </span>
+                            </div>
+                            <div className="flex justify-between">
+                              <span className="text-gray-400">Trade ID:</span>
+                              <span className="text-indigo-300">
+                                #{alert.parsed_alert.original_trade_id}
+                              </span>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    )}
                   </div>
                 )
               )}
@@ -1032,6 +1236,72 @@ export default function WealthgroupPage() {
                             <p className="text-gray-200 text-sm">
                               {alert.content}
                             </p>
+                            {alert.parsed_alert && (
+                              <div className="mt-3 bg-gray-800/30 p-3 rounded border border-gray-600">
+                                <div className="space-y-2">
+                                  <div className="flex items-center justify-between pb-2 border-b border-gray-600">
+                                    <span className="text-xs font-medium text-orange-300">
+                                      🔔 Parsed Action Details
+                                    </span>
+                                    <span className="text-xs text-blue-300">
+                                      {alert.parsed_alert.coin_symbol}
+                                    </span>
+                                  </div>
+                                  <div className="space-y-1 text-xs">
+                                    <div className="flex justify-between">
+                                      <span className="text-gray-400">
+                                        Action:
+                                      </span>
+                                      <span className="text-yellow-300 font-medium">
+                                        {alert.parsed_alert.action_determined.action_type
+                                          .replace(/_/g, " ")
+                                          .toUpperCase()}
+                                      </span>
+                                    </div>
+                                    <div className="flex justify-between">
+                                      <span className="text-gray-400">
+                                        Description:
+                                      </span>
+                                      <span className="text-purple-300 font-medium text-right max-w-[200px]">
+                                        {
+                                          alert.parsed_alert.action_determined
+                                            .action_description
+                                        }
+                                      </span>
+                                    </div>
+                                    <div className="flex justify-between">
+                                      <span className="text-gray-400">
+                                        Status:
+                                      </span>
+                                      <span
+                                        className={`font-medium ${
+                                          alert.parsed_alert.action_determined
+                                            .position_status === "ACTIVE"
+                                            ? "text-green-300"
+                                            : "text-red-300"
+                                        }`}
+                                      >
+                                        {
+                                          alert.parsed_alert.action_determined
+                                            .position_status
+                                        }
+                                      </span>
+                                    </div>
+                                    <div className="flex justify-between">
+                                      <span className="text-gray-400">
+                                        Binance:
+                                      </span>
+                                      <span className="text-cyan-300 font-medium">
+                                        {
+                                          alert.parsed_alert.action_determined
+                                            .binance_action
+                                        }
+                                      </span>
+                                    </div>
+                                  </div>
+                                </div>
+                              </div>
+                            )}
                           </div>
                         </div>
                       )
@@ -1087,6 +1357,103 @@ export default function WealthgroupPage() {
                     <p className="text-gray-200 text-sm">
                       {selectedAlertForModal.content}
                     </p>
+                    {selectedAlertForModal.parsed_alert && (
+                      <div className="mt-3 bg-gray-800/50 p-4 rounded border border-gray-600">
+                        <div className="space-y-3">
+                          <div className="flex items-center justify-between pb-2 border-b border-gray-600">
+                            <span className="text-sm font-medium text-orange-300">
+                              🔔 Parsed Alert Details
+                            </span>
+                            <div className="flex items-center gap-2">
+                              <span className="text-sm font-semibold text-blue-300">
+                                {selectedAlertForModal.parsed_alert.coin_symbol}
+                              </span>
+                              <span className="text-xs text-gray-400">
+                                ID:{" "}
+                                {selectedAlertForModal.parsed_alert.alert_id}
+                              </span>
+                            </div>
+                          </div>
+                          <div className="space-y-2 text-sm">
+                            <div className="flex justify-between items-center">
+                              <span className="text-gray-400">
+                                Action Type:
+                              </span>
+                              <span className="text-yellow-300 font-medium">
+                                {selectedAlertForModal.parsed_alert.action_determined.action_type
+                                  .replace(/_/g, " ")
+                                  .toUpperCase()}
+                              </span>
+                            </div>
+                            <div className="flex justify-between items-start">
+                              <span className="text-gray-400">
+                                Description:
+                              </span>
+                              <span className="text-purple-300 font-medium text-right max-w-[300px]">
+                                {
+                                  selectedAlertForModal.parsed_alert
+                                    .action_determined.action_description
+                                }
+                              </span>
+                            </div>
+                            <div className="flex justify-between items-center">
+                              <span className="text-gray-400">
+                                Position Status:
+                              </span>
+                              <span
+                                className={`font-medium ${
+                                  selectedAlertForModal.parsed_alert
+                                    .action_determined.position_status ===
+                                  "ACTIVE"
+                                    ? "text-green-300"
+                                    : "text-red-300"
+                                }`}
+                              >
+                                {
+                                  selectedAlertForModal.parsed_alert
+                                    .action_determined.position_status
+                                }
+                              </span>
+                            </div>
+                            <div className="flex justify-between items-center">
+                              <span className="text-gray-400">
+                                Binance Action:
+                              </span>
+                              <span className="text-cyan-300 font-medium">
+                                {
+                                  selectedAlertForModal.parsed_alert
+                                    .action_determined.binance_action
+                                }
+                              </span>
+                            </div>
+                            {selectedAlertForModal.parsed_alert
+                              .action_determined.reason && (
+                              <div className="flex justify-between items-start">
+                                <span className="text-gray-400">Reason:</span>
+                                <span className="text-gray-300 text-sm text-right max-w-[300px]">
+                                  {
+                                    selectedAlertForModal.parsed_alert
+                                      .action_determined.reason
+                                  }
+                                </span>
+                              </div>
+                            )}
+                            <div className="flex justify-between items-center">
+                              <span className="text-gray-400">
+                                Original Trade ID:
+                              </span>
+                              <span className="text-indigo-300 font-medium">
+                                #
+                                {
+                                  selectedAlertForModal.parsed_alert
+                                    .original_trade_id
+                                }
+                              </span>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    )}
                   </div>
                 </div>
 
