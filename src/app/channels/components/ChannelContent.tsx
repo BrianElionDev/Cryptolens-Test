@@ -123,7 +123,8 @@ export const ChannelContent = () => {
 
           // Ensure coin is a string
           if (typeof coin === "object" && coin !== null) {
-            coin = coin.name || coin.id || String(coin);
+            const coinObj = coin as { name?: string; id?: string };
+            coin = coinObj.name || coinObj.id || String(coin);
           }
           coin = String(coin || "").trim();
 
@@ -138,7 +139,8 @@ export const ChannelContent = () => {
             ? rawCategories
                 .map((cat) => {
                   if (typeof cat === "object" && cat !== null) {
-                    return cat.name || cat.id || String(cat);
+                    const catObj = cat as { name?: string; id?: string };
+                    return catObj.name || catObj.id || String(cat);
                   }
                   return String(cat || "").trim();
                 })
