@@ -27,28 +27,48 @@ export const ChannelContent = () => {
 
   // Get unique channels with proper typing
   const channels = Array.from(
-    new Set(knowledge?.map((item) => item["channel name"]) || [])
-  ).sort() as string[];
+    new Set(
+      knowledge
+        ?.map((item) => String(item["channel name"] || "").trim())
+        .filter(Boolean) || []
+    )
+  ).sort();
 
   // Initialize from URL params on first load
   useEffect(() => {
-    if (initialized.current) return;
+    if (!channels.length || initialized.current) return;
 
-    const channelsFromUrl = searchParams.get("channels")?.split(",") || [];
+    const channelsFromUrl =
+      searchParams.get("channels")?.split(",").filter(Boolean) || [];
+
+    if (channelsFromUrl.length > 0) {
+      // Validate URL channels exist in current data
+      const validChannels = channelsFromUrl.filter((c) => channels.includes(c));
+      if (validChannels.length > 0) {
+        setSelectedChannels(validChannels);
+        setTempSelectedChannels(validChannels);
+        initialized.current = true;
+        return;
+      }
+    }
+
+    // Default: Select all channels
+    setSelectedChannels(channels);
+    setTempSelectedChannels(channels);
+    initialized.current = true;
+  }, [channels, searchParams, setSelectedChannels]);
+
+  // Ensure all channels are selected by default when store is empty
+  useEffect(() => {
     if (
-      channelsFromUrl.length > 0 &&
-      channelsFromUrl.every((c) => channels.includes(c))
+      channels.length > 0 &&
+      selectedChannels.length === 0 &&
+      !searchParams.get("channels")
     ) {
-      setSelectedChannels(channelsFromUrl);
-      setTempSelectedChannels(channelsFromUrl);
-    } else if (channels.length > 0) {
-      // Select all channels by default
       setSelectedChannels(channels);
       setTempSelectedChannels(channels);
     }
-
-    initialized.current = true;
-  }, [channels, searchParams, setSelectedChannels]);
+  }, [channels, selectedChannels, setSelectedChannels, searchParams]);
 
   // Handle URL updates
   const updateUrl = (selectedChannels: string[]) => {
@@ -76,9 +96,10 @@ export const ChannelContent = () => {
   };
 
   // Filter knowledge items by selected channels
-  const channelKnowledge = knowledge?.filter((item) =>
-    selectedChannels.includes(item["channel name"])
-  );
+  const channelKnowledge = knowledge?.filter((item) => {
+    const channelName = String(item["channel name"] || "").trim();
+    return selectedChannels.includes(channelName);
+  });
 
   // Aggregate data for selected channels
   const aggregatedData = useMemo(() => {
@@ -98,12 +119,31 @@ export const ChannelContent = () => {
           : [item.llm_answer.projects];
 
         projects.forEach((project) => {
-          const coin = project.coin_or_project;
+          let coin = project.coin_or_project;
+
+          // Ensure coin is a string
+          if (typeof coin === "object" && coin !== null) {
+            coin = coin.name || coin.id || String(coin);
+          }
+          coin = String(coin || "").trim();
+
           // Skip projects without a valid coin name
           if (!coin) return;
 
-          const rpoints = project.rpoints || 0;
-          const categories = project.category || [];
+          const rpoints = Number(project.rpoints) || 0;
+          const rawCategories = project.category || [];
+
+          // Ensure categories are strings
+          const categories = Array.isArray(rawCategories)
+            ? rawCategories
+                .map((cat) => {
+                  if (typeof cat === "object" && cat !== null) {
+                    return cat.name || cat.id || String(cat);
+                  }
+                  return String(cat || "").trim();
+                })
+                .filter(Boolean)
+            : [String(rawCategories || "").trim()].filter(Boolean);
 
           if (!data.has(coin)) {
             data.set(coin, {
@@ -142,7 +182,16 @@ export const ChannelContent = () => {
           <p className="text-sm text-gray-400">Select channels to analyze</p>
         </div>
 
-        <DropdownMenu open={open} onOpenChange={setOpen}>
+        <DropdownMenu
+          open={open}
+          onOpenChange={(isOpen) => {
+            setOpen(isOpen);
+            if (isOpen) {
+              // Sync temp selection with current selection when opening
+              setTempSelectedChannels(selectedChannels);
+            }
+          }}
+        >
           <DropdownMenuTrigger asChild>
             <Button
               variant="outline"
@@ -179,21 +228,24 @@ export const ChannelContent = () => {
               <div className="space-y-2">
                 {channels.map((channel) => (
                   <label
-                    key={channel}
+                    key={String(channel)}
                     className="flex items-center px-4 py-2 hover:bg-gray-800/60 cursor-pointer rounded"
                   >
                     <Checkbox
-                      checked={tempSelectedChannels.includes(channel)}
+                      checked={tempSelectedChannels.includes(String(channel))}
                       onCheckedChange={(checked) => {
+                        const channelStr = String(channel);
                         setTempSelectedChannels((prev) =>
                           checked
-                            ? [...prev, channel]
-                            : prev.filter((ch) => ch !== channel)
+                            ? [...prev, channelStr]
+                            : prev.filter((ch) => ch !== channelStr)
                         );
                       }}
                       className="mr-2"
                     />
-                    <span className="text-sm text-gray-200">{channel}</span>
+                    <span className="text-sm text-gray-200">
+                      {String(channel)}
+                    </span>
                   </label>
                 ))}
               </div>
@@ -377,11 +429,11 @@ export const ChannelContent = () => {
                                 <div className="flex items-center">
                                   <div className="w-8 h-8 rounded-lg bg-indigo-500/10 flex items-center justify-center mr-3">
                                     <span className="text-indigo-400 font-medium">
-                                      {coin && coin.charAt(0)}
+                                      {coin && String(coin).charAt(0)}
                                     </span>
                                   </div>
                                   <span className="font-medium text-indigo-300">
-                                    {coin || "Unknown"}
+                                    {String(coin || "Unknown")}
                                   </span>
                                 </div>
                               </td>
@@ -403,10 +455,10 @@ export const ChannelContent = () => {
                                 <div className="flex flex-wrap gap-2">
                                   {categories.map((category) => (
                                     <span
-                                      key={category}
+                                      key={String(category)}
                                       className="px-2 py-1 text-xs font-medium bg-gray-800/50 text-gray-400 rounded-lg whitespace-nowrap"
                                     >
-                                      {category}
+                                      {String(category)}
                                     </span>
                                   ))}
                                 </div>

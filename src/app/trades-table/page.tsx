@@ -537,8 +537,11 @@ export default function TradesTablePage() {
                   </SelectTrigger>
                   <SelectContent className="bg-gray-900 border-gray-700">
                     <SelectItem value="all">All Types</SelectItem>
-                    {tradeTypes.map((type) => (
-                      <SelectItem key={type} value={type}>
+                    {tradeTypes.map((type, index) => (
+                      <SelectItem
+                        key={`tradetype-${type}-${index}`}
+                        value={type}
+                      >
                         {type}
                       </SelectItem>
                     ))}
@@ -552,8 +555,8 @@ export default function TradesTablePage() {
                   </SelectTrigger>
                   <SelectContent className="bg-gray-900 border-gray-700">
                     <SelectItem value="all">All Coins</SelectItem>
-                    {coins.map((coin) => (
-                      <SelectItem key={coin} value={coin}>
+                    {coins.map((coin, index) => (
+                      <SelectItem key={`coin-${coin}-${index}`} value={coin}>
                         {coin}
                       </SelectItem>
                     ))}
@@ -654,10 +657,10 @@ export default function TradesTablePage() {
                       </TableRow>
                     </TableHeader>
                     <TableBody>
-                      {filteredEntries.map((entry: TradeEntry) => {
+                      {filteredEntries.map((entry: TradeEntry, index) => {
                         return (
                           <TableRow
-                            key={entry.id}
+                            key={`${entry.id}-${entry.type}-${index}`}
                             className={`border-gray-700 hover:bg-gray-800/30 transition-colors ${
                               entry.type === "alert"
                                 ? "bg-gradient-to-r from-slate-800/30 to-blue-900/20"
@@ -740,7 +743,7 @@ export default function TradesTablePage() {
                         );
                       })}
                       {filteredEntries.length === 0 && (
-                        <TableRow>
+                        <TableRow key="empty-entries">
                           <TableCell colSpan={7} className="text-center py-8">
                             <TrendingUp className="w-12 h-12 text-gray-500 mx-auto mb-4" />
                             <p className="text-gray-400">
@@ -805,8 +808,11 @@ export default function TradesTablePage() {
                       </SelectTrigger>
                       <SelectContent className="bg-gray-900 border-gray-700">
                         <SelectItem value="all">All Traders</SelectItem>
-                        {traders.map((trader) => (
-                          <SelectItem key={trader} value={trader}>
+                        {traders.map((trader, index) => (
+                          <SelectItem
+                            key={`trader-${trader}-${index}`}
+                            value={trader}
+                          >
                             {trader}
                           </SelectItem>
                         ))}
@@ -823,8 +829,11 @@ export default function TradesTablePage() {
                       </SelectTrigger>
                       <SelectContent className="bg-gray-900 border-gray-700">
                         <SelectItem value="all">All Types</SelectItem>
-                        {signalTypes.map((type) => (
-                          <SelectItem key={type} value={type}>
+                        {signalTypes.map((type, index) => (
+                          <SelectItem
+                            key={`signaltype-${type}-${index}`}
+                            value={type}
+                          >
                             {type}
                           </SelectItem>
                         ))}
@@ -841,8 +850,11 @@ export default function TradesTablePage() {
                       </SelectTrigger>
                       <SelectContent className="bg-gray-900 border-gray-700">
                         <SelectItem value="all">All Status</SelectItem>
-                        {statuses.map((status) => (
-                          <SelectItem key={status} value={status}>
+                        {statuses.map((status, index) => (
+                          <SelectItem
+                            key={`status-${status}-${index}`}
+                            value={status}
+                          >
                             {status}
                           </SelectItem>
                         ))}
@@ -961,9 +973,9 @@ export default function TradesTablePage() {
                           </TableRow>
                         </TableHeader>
                         <TableBody>
-                          {filteredTrades.map((trade: TradesRow) => (
+                          {filteredTrades.map((trade: TradesRow, index) => (
                             <TableRow
-                              key={trade.id}
+                              key={`trade-${trade.id}-${index}`}
                               className="border-gray-700 hover:bg-gray-800/30 transition-colors"
                             >
                               <TableCell className="font-mono text-sm text-gray-300">
@@ -1074,7 +1086,7 @@ export default function TradesTablePage() {
                             </TableRow>
                           ))}
                           {filteredTrades.length === 0 && (
-                            <TableRow>
+                            <TableRow key="empty-trades">
                               <TableCell
                                 colSpan={8}
                                 className="text-center py-8"
