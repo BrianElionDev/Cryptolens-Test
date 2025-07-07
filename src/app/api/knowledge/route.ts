@@ -59,7 +59,7 @@ export async function GET() {
     const { data: knowledgeData, error } = await supabase
       .from("tests")
       .select("*")
-      .order("date", { ascending: false });
+      .order("date", { ascending: false })
 
     if (error) {
       console.error("Knowledge fetch error:", error);
