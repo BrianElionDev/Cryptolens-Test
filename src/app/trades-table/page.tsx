@@ -71,7 +71,8 @@ async function fetchTradingLogData() {
   const { data, error } = await supabase
     .from("trading_log")
     .select("*")
-    .order("timestamp", { ascending: false });
+    .order("timestamp", { ascending: false })
+    .limit(1000);
 
   if (error) {
     throw new Error(`Failed to fetch trading log: ${error.message}`);
@@ -93,7 +94,8 @@ async function fetchTradesData() {
   const { data, error } = await supabase
     .from("trades")
     .select("*")
-    .order("timestamp", { ascending: false });
+    .order("timestamp", { ascending: false })
+    .limit(1000);
 
   if (error) {
     throw new Error(`Failed to fetch trades: ${error.message}`);
@@ -327,7 +329,7 @@ export default function TradesTablePage() {
     });
 
     const sorted = filtered.sort((a: TradeEntry, b: TradeEntry) => {
-      const dateA = new Date(a.timestamp).getTime();
+      const dateA = new Date(a.timestamp).getTime(); 
       const dateB = new Date(b.timestamp).getTime();
       return sortBy === "newest" ? dateB - dateA : dateA - dateB;
     });

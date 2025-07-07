@@ -30,11 +30,13 @@ export async function GET() {
       supabase
         .from("alerts")
         .select("*")
-        .order("timestamp", { ascending: false }),
+        .order("timestamp", { ascending: false })
+        .limit(1000),
       supabase
         .from("trades")
         .select("*")
-        .order("timestamp", { ascending: false }),
+        .order("timestamp", { ascending: false })
+        .limit(1000),
     ]);
 
     if (alertsResponse.error) {
