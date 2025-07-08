@@ -329,7 +329,7 @@ export default function TradesTablePage() {
     });
 
     const sorted = filtered.sort((a: TradeEntry, b: TradeEntry) => {
-      const dateA = new Date(a.timestamp).getTime(); 
+      const dateA = new Date(a.timestamp).getTime();
       const dateB = new Date(b.timestamp).getTime();
       return sortBy === "newest" ? dateB - dateA : dateA - dateB;
     });
@@ -963,9 +963,7 @@ export default function TradesTablePage() {
                             <TableHead className="text-gray-300 font-semibold min-w-[100px]">
                               Status
                             </TableHead>
-                            <TableHead className="text-gray-300 font-semibold min-w-[100px]">
-                              Active
-                            </TableHead>
+
                             <TableHead className="text-gray-300 font-semibold min-w-[100px]">
                               Exit Price
                             </TableHead>
@@ -1055,18 +1053,7 @@ export default function TradesTablePage() {
                                   {trade.status}
                                 </Badge>
                               </TableCell>
-                              <TableCell>
-                                <Badge
-                                  variant="outline"
-                                  className={
-                                    trade.is_active
-                                      ? "border-green-500/50 text-green-300"
-                                      : "border-red-500/50 text-red-300"
-                                  }
-                                >
-                                  {trade.is_active ? "True" : "False"}
-                                </Badge>
-                              </TableCell>
+
                               <TableCell className="text-blue-300 font-medium">
                                 {trade.exit_price
                                   ? `$${trade.exit_price.toFixed(4)}`
