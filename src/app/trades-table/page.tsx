@@ -56,6 +56,7 @@ interface TradesRow {
   signal_type: string;
   is_active: boolean;
   status: string;
+  position_size: number;
   exchange_order_id: string | null;
   exit_price: number | null;
   pnl_usd: number | null;
@@ -963,6 +964,9 @@ export default function TradesTablePage() {
                             <TableHead className="text-gray-300 font-semibold min-w-[100px]">
                               Status
                             </TableHead>
+                            <TableHead className="text-gray-300 font-semibold min-w-[100px]">
+                              Position Size
+                            </TableHead>
 
                             <TableHead className="text-gray-300 font-semibold min-w-[100px]">
                               Exit Price
@@ -999,7 +1003,7 @@ export default function TradesTablePage() {
                               <TableCell>
                                 <Badge
                                   variant="outline"
-                                  className="border-purple-500/50 text-purple-300"
+                                  className="border-orange-500/50 text-orange-300 bg-orange-900/50"
                                 >
                                   {trade.trader}
                                 </Badge>
@@ -1016,14 +1020,10 @@ export default function TradesTablePage() {
                                 <Badge
                                   variant="outline"
                                   className={
-                                    trade.signal_type === "NEW_TRADE"
-                                      ? "border-blue-500/50 text-blue-300"
-                                      : trade.signal_type === "UPDATE_SL"
-                                      ? "border-yellow-500/50 text-yellow-300"
-                                      : trade.signal_type === "UPDATE_TP"
-                                      ? "border-green-500/50 text-green-300"
-                                      : trade.signal_type === "CLOSE_POSITION"
-                                      ? "border-red-500/50 text-red-300"
+                                    trade.signal_type === "LONG"
+                                      ? "border-purple-500/50 text-purple-300"
+                                      : trade.signal_type === "SHORT"
+                                      ? "border-cyan-500/50 text-cyan-300"
                                       : "border-gray-500/50 text-gray-300"
                                   }
                                 >
@@ -1039,10 +1039,12 @@ export default function TradesTablePage() {
                                       .trim()
                                       .toUpperCase();
                                     switch (status) {
-                                      case "ACTIVE":
+                                      case "OPEN":
                                         return "border-green-500/50 text-green-300";
                                       case "CLOSED":
                                         return "border-red-500/50 text-red-300";
+                                      case "PARTIALLY_CLOSED":
+                                        return "border-blue-500/50 text-blue-300";
                                       case "PENDING":
                                         return "border-yellow-500/50 text-yellow-300";
                                       default:
@@ -1052,6 +1054,15 @@ export default function TradesTablePage() {
                                 >
                                   {trade.status}
                                 </Badge>
+                              </TableCell>
+                              <TableCell>
+                                {trade.position_size === null ? (
+                                  "-"
+                                ) : (
+                                  <span className="text-green-300">
+                                    {trade.position_size}
+                                  </span>
+                                )}
                               </TableCell>
 
                               <TableCell className="text-blue-300 font-medium">
