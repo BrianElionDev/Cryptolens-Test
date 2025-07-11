@@ -31,9 +31,11 @@ import {
   Filter,
   ArrowUpDown,
   Activity,
+  ExternalLink,
 } from "lucide-react";
 import { Alert, Trade } from "@/types/wealthgroup";
 import { formatInTimeZone } from "date-fns-tz";
+import { BinanceResponseModal } from "@/components/modals/BinanceResponseModal";
 
 interface TradingLogRow {
   id: string;
@@ -59,6 +61,7 @@ interface TradesRow {
   position_size: number;
   exchange_order_id: string | null;
   exit_price: number | null;
+  binance_response: string | null;
   pnl_usd: number | null;
   parsed_signal: object;
 }
@@ -139,6 +142,14 @@ export default function TradesTablePage() {
   );
   const [tradesResultLimit, setTradesResultLimit] = useState<number>(50);
   const [tradesDateRange, setTradesDateRange] = useState("all");
+
+  // Modal state
+  const [selectedTrade, setSelectedTrade] = useState<TradesRow | null>(null);
+  const [showBinanceModal, setShowBinanceModal] = useState(false);
+  const [modalPosition, setModalPosition] = useState({ x: 0, y: 0 });
+  const [highlightedTradeId, setHighlightedTradeId] = useState<number | null>(
+    null
+  );
 
   const { data, isLoading, error } = useQuery({
     queryKey: ["trading_log"],
@@ -967,12 +978,14 @@ export default function TradesTablePage() {
                             <TableHead className="text-gray-300 font-semibold min-w-[100px]">
                               Position Size
                             </TableHead>
-
                             <TableHead className="text-gray-300 font-semibold min-w-[100px]">
                               Exit Price
                             </TableHead>
                             <TableHead className="text-gray-300 font-semibold min-w-[100px]">
                               P&L (USD)
+                            </TableHead>
+                            <TableHead className="text-gray-300 font-semibold min-w-[80px]">
+                              Details
                             </TableHead>
                           </TableRow>
                         </TableHeader>
@@ -980,7 +993,14 @@ export default function TradesTablePage() {
                           {filteredTrades.map((trade: TradesRow, index) => (
                             <TableRow
                               key={`trade-${trade.id}-${index}`}
-                              className="border-gray-700 hover:bg-gray-800/30 transition-colors"
+                              className={`border-gray-700 hover:bg-gray-800/30 transition-colors ${
+                                selectedTrade?.id === trade.id &&
+                                showBinanceModal
+                                  ? "bg-blue-500/10 border-blue-500/30 shadow-lg shadow-blue-500/20"
+                                  : highlightedTradeId === trade.id
+                                  ? "bg-blue-500/20 border-blue-500/20"
+                                  : ""
+                              }`}
                             >
                               <TableCell className="font-mono text-sm text-gray-300">
                                 <div className="flex flex-col">
@@ -1083,12 +1103,97 @@ export default function TradesTablePage() {
                                   ? `$${trade.pnl_usd.toFixed(2)}`
                                   : "-"}
                               </TableCell>
+                              <TableCell>
+                                <button
+                                  onClick={(e) => {
+                                    const rect =
+                                      e.currentTarget.getBoundingClientRect();
+                                    const tableContainer =
+                                      e.currentTarget.closest(
+                                        ".overflow-x-auto"
+                                      );
+                                    const tableRect =
+                                      tableContainer?.getBoundingClientRect();
+                                    const viewportWidth = window.innerWidth;
+                                    const viewportHeight = window.innerHeight;
+
+                                    // Position modal to align with table
+                                    let x = rect.left;
+                                    let y = rect.top + rect.height + 10; // 10px below the button
+
+                                    // Check if modal would go off-screen and adjust
+                                    const modalWidth = 400;
+                                    const modalHeight = 500; // Increased height estimate
+
+                                    // Horizontal positioning - prioritize viewport boundaries
+                                    if (x + modalWidth > viewportWidth) {
+                                      x = viewportWidth - modalWidth - 20; // 20px margin from right
+                                    }
+                                    if (x < 20) {
+                                      x = 20; // 20px margin from left
+                                    }
+
+                                    // Vertical positioning - check both table and viewport
+                                    if (y + modalHeight > viewportHeight) {
+                                      // Try to show above the button first
+                                      y = rect.top - modalHeight - 10;
+
+                                      // If still off-screen, position at top of viewport
+                                      if (y < 20) {
+                                        y = 20;
+                                      }
+                                    }
+
+                                    // If table container exists, make final adjustments within table bounds
+                                    if (tableRect) {
+                                      // Ensure modal doesn't go outside table horizontally
+                                      if (x + modalWidth > tableRect.right) {
+                                        x = tableRect.right - modalWidth - 10;
+                                      }
+                                      if (x < tableRect.left) {
+                                        x = tableRect.left + 10;
+                                      }
+                                    }
+
+                                    setModalPosition({ x, y });
+                                    setSelectedTrade(trade);
+                                    setShowBinanceModal(true);
+                                    setHighlightedTradeId(trade.id);
+
+                                    // Ensure the modal is visible by scrolling if needed
+                                    setTimeout(() => {
+                                      const modalElement =
+                                        document.querySelector(
+                                          '[data-modal="binance-response"]'
+                                        );
+                                      if (modalElement) {
+                                        modalElement.scrollIntoView({
+                                          behavior: "smooth",
+                                          block: "nearest",
+                                          inline: "nearest",
+                                        });
+                                      }
+                                    }, 100);
+                                  }}
+                                  className={`p-2 rounded-lg transition-all duration-200 ${
+                                    selectedTrade?.id === trade.id &&
+                                    showBinanceModal
+                                      ? "bg-blue-500/20 text-blue-200 border border-blue-500/50 shadow-lg shadow-blue-500/20"
+                                      : highlightedTradeId === trade.id
+                                      ? "bg-blue-500/30 text-blue-300 border border-blue-500/30"
+                                      : "hover:bg-gray-800/50 text-gray-400 hover:text-blue-300 border border-transparent hover:border-blue-500/30"
+                                  }`}
+                                  title="View Binance Response"
+                                >
+                                  <ExternalLink className="w-4 h-4" />
+                                </button>
+                              </TableCell>
                             </TableRow>
                           ))}
                           {filteredTrades.length === 0 && (
                             <TableRow key="empty-trades">
                               <TableCell
-                                colSpan={8}
+                                colSpan={9}
                                 className="text-center py-8"
                               >
                                 <TrendingUp className="w-12 h-12 text-gray-500 mx-auto mb-4" />
@@ -1115,6 +1220,18 @@ export default function TradesTablePage() {
           </TabsContent>
         </Tabs>
       </div>
+
+      {/* Binance Response Modal */}
+      {showBinanceModal && selectedTrade && (
+        <BinanceResponseModal
+          trade={selectedTrade}
+          position={modalPosition}
+          onClose={() => {
+            setShowBinanceModal(false);
+            setSelectedTrade(null);
+          }}
+        />
+      )}
     </div>
   );
 }
