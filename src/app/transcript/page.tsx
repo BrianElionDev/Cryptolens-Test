@@ -5,12 +5,58 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card } from "@/components/ui/card";
 import { useToast } from "@/hooks/use-toast";
+import jsPDF from "jspdf";
 
 export default function TranscriptPage() {
   const [url, setUrl] = useState("");
   const [loading, setLoading] = useState(false);
   const [transcript, setTranscript] = useState<string | null>(null);
   const { toast } = useToast();
+
+  /*  const handleDownloadPDF = () => {
+    if (!transcript) return;
+
+    const doc = new jsPDF();
+    const splitText = doc.splitTextToSize(transcript, 180);
+    
+    doc.setFontSize(12);
+    doc.text(splitText, 15, 15);
+    doc.save("transcript.pdf");
+
+    toast({
+      title: "Success",
+      description: "PDF downloaded successfully!",
+    });
+  }; */
+
+  const handleDownloadPDF = () => {
+    if (!transcript) return;
+
+    const doc = new jsPDF();
+    const splitText = doc.splitTextToSize(transcript, 180);
+
+    doc.setFontSize(12);
+
+    let y = 15; // Starting y position
+    const pageHeight = doc.internal.pageSize.height; // Get the height of the page
+
+    splitText.forEach((line: string) => {
+      if (y + 10 > pageHeight) {
+        // Check if the next line will overflow
+        doc.addPage(); // Add a new page
+        y = 15; // Reset y position for the new page
+      }
+      doc.text(line, 15, y); // Add the line of text
+      y += 10; // Move y position down for the next line
+    });
+
+    doc.save("transcript.pdf");
+
+    toast({
+      title: "Success",
+      description: "PDF downloaded successfully!",
+    });
+  };
 
   const handleSubmit = async (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
@@ -31,7 +77,6 @@ export default function TranscriptPage() {
       if (!response.ok) {
         throw new Error(data.message || "Failed to fetch transcript");
       }
-
       setTranscript(data.transcript);
       toast({
         title: "Success",
@@ -40,7 +85,8 @@ export default function TranscriptPage() {
     } catch (err) {
       toast({
         title: "Error",
-        description: err instanceof Error ? err.message : "Something went wrong",
+        description:
+          err instanceof Error ? err.message : "Something went wrong",
         variant: "destructive",
       });
     } finally {
@@ -114,7 +160,9 @@ export default function TranscriptPage() {
                         type="url"
                         placeholder="https://www.youtube.com/watch?v=..."
                         value={url}
-                        onChange={(e: ChangeEvent<HTMLInputElement>) => setUrl(e.target.value)}
+                        onChange={(e: ChangeEvent<HTMLInputElement>) =>
+                          setUrl(e.target.value)
+                        }
                         className="pl-5 bg-gray-800/60 border-gray-700/50 text-gray-200 focus-visible:ring-green-500/50 rounded-xl transition-all"
                         required
                       />
@@ -227,7 +275,8 @@ export default function TranscriptPage() {
                     Get Transcript
                   </h3>
                   <p className="text-gray-400 text-sm">
-                    Our service will fetch and process the video transcript for you
+                    Our service will fetch and process the video transcript for
+                    you
                   </p>
                 </div>
               </div>
@@ -238,6 +287,27 @@ export default function TranscriptPage() {
 
       {transcript && (
         <div className="mt-8">
+          <div className="flex justify-end mb-4">
+            <Button
+              onClick={handleDownloadPDF}
+              className="bg-green-600 hover:bg-green-700 text-white"
+            >
+              <svg
+                className="h-5 w-5 mr-2"
+                fill="none"
+                viewBox="0 0 24 24"
+                stroke="currentColor"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
+                />
+              </svg>
+              Download PDF
+            </Button>
+          </div>
           <Card className="p-6 bg-gray-900/80 backdrop-blur-md border-green-800/40">
             <pre className="whitespace-pre-wrap text-gray-200 font-mono text-sm">
               {transcript}
@@ -247,4 +317,4 @@ export default function TranscriptPage() {
       )}
     </div>
   );
-} 
+}

@@ -17,7 +17,7 @@ export async function POST(request: Request) {
       headers: {
         "Content-Type": "application/json",
       },
-      body: JSON.stringify({ youtube_url: url }),
+      body: JSON.stringify({ "youtube_url": url }),
     });
 
     if (!response.ok) {
