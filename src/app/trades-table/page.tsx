@@ -61,6 +61,7 @@ interface TradesRow {
   position_size: number;
   exchange_order_id: string | null;
   exit_price: number | null;
+  entry_price: number | null;
   binance_response: string | null;
   pnl_usd: number | null;
   parsed_signal: object;
@@ -328,7 +329,9 @@ export default function TradesTablePage() {
       const matchesState =
         selectedState === "all" || entry.state === selectedState;
 
-      const matchesCoin = selectedCoin === "all" || entry.coin === selectedCoin;
+      const matchesCoin =
+        selectedCoin === "all" ||
+        entry.coin?.toLowerCase() === selectedCoin.toLowerCase();
 
       // Date range filtering
       const entryDate = new Date(entry.timestamp);
@@ -979,6 +982,9 @@ export default function TradesTablePage() {
                               Position Size
                             </TableHead>
                             <TableHead className="text-gray-300 font-semibold min-w-[100px]">
+                              Entry Price
+                            </TableHead>
+                            <TableHead className="text-gray-300 font-semibold min-w-[100px]">
                               Exit Price
                             </TableHead>
                             <TableHead className="text-gray-300 font-semibold min-w-[100px]">
@@ -1084,7 +1090,13 @@ export default function TradesTablePage() {
                                   </span>
                                 )}
                               </TableCell>
-
+                              <TableCell className="text-blue-300 font-medium">
+                                {trade.entry_price && trade.entry_price > 0
+                                  ? `$${trade.entry_price}`
+                                  : trade.entry_price && trade.entry_price < 0
+                                  ? `-$${Math.abs(trade.entry_price)}`
+                                  : "-"}
+                              </TableCell>
                               <TableCell className="text-blue-300 font-medium">
                                 {trade.exit_price
                                   ? `$${trade.exit_price.toFixed(4)}`
