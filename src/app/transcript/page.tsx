@@ -77,7 +77,10 @@ export default function TranscriptPage() {
       if (!response.ok) {
         throw new Error(data.message || "Failed to fetch transcript");
       }
-      setTranscript(data.transcript);
+      setTranscript(
+        data?.transcript?.content ||
+          "An error occured or youtube video lacks transcripts"
+      );
       toast({
         title: "Success",
         description: "Transcript fetched successfully!",
