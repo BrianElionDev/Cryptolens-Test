@@ -6,7 +6,6 @@ import { Input } from "@/components/ui/input";
 import { Card } from "@/components/ui/card";
 import { useToast } from "@/hooks/use-toast";
 import jsPDF from "jspdf";
-
 export default function TranscriptPage() {
   const [url, setUrl] = useState("");
   const [loading, setLoading] = useState(false);
