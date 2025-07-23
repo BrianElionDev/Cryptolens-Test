@@ -129,7 +129,7 @@ export default function TradesTablePage() {
   const [selectedState, setSelectedState] = useState("all");
   const [selectedCoin, setSelectedCoin] = useState("all");
   const [sortBy, setSortBy] = useState<"newest" | "oldest">("newest");
-  const [resultLimit, setResultLimit] = useState<number>(50);
+  const [resultLimit, setResultLimit] = useState<number>(9999);
   const [dateRange, setDateRange] = useState("all");
 
   // Trades tab filters
@@ -141,7 +141,7 @@ export default function TradesTablePage() {
   const [tradesSortBy, setTradesSortBy] = useState<"newest" | "oldest">(
     "newest"
   );
-  const [tradesResultLimit, setTradesResultLimit] = useState<number>(50);
+  const [tradesResultLimit, setTradesResultLimit] = useState<number>(9999);
   const [tradesDateRange, setTradesDateRange] = useState("all");
 
   // Modal state
@@ -1097,22 +1097,22 @@ export default function TradesTablePage() {
                                   ? `-$${Math.abs(trade.entry_price)}`
                                   : "-"}
                               </TableCell>
-                              <TableCell className="text-blue-300 font-medium">
+                              <TableCell className="text-purple-400 font-medium">
                                 {trade.exit_price
-                                  ? `$${trade.exit_price.toFixed(4)}`
+                                  ? `$${trade.exit_price}`
                                   : "-"}
                               </TableCell>
                               <TableCell
                                 className={`font-medium ${
                                   trade.pnl_usd
                                     ? trade.pnl_usd > 0
-                                      ? "text-green-300"
-                                      : "text-red-300"
+                                      ? "text-green-400"
+                                      : "text-red-400"
                                     : "text-gray-400"
                                 }`}
                               >
                                 {trade.pnl_usd
-                                  ? `$${trade.pnl_usd.toFixed(2)}`
+                                  ? `$${trade.pnl_usd}`
                                   : "-"}
                               </TableCell>
                               <TableCell>
