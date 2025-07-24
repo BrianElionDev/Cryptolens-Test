@@ -62,6 +62,8 @@ interface TradesRow {
   exchange_order_id: string | null;
   exit_price: number | null;
   entry_price: number | null;
+  binance_entry_price: number | null;
+  binance_exit_price: number | null;
   binance_response: string | null;
   pnl_usd: number | null;
   parsed_signal: object;
@@ -476,7 +478,7 @@ export default function TradesTablePage() {
   }
 
   return (
-    <div className="min-h-screen px-16 pt-24 bg-gradient-to-br from-black via-purple-950/20 to-black relative overflow-hidden">
+    <div className="min-h-screen px-6 pt-24 bg-gradient-to-br from-black via-purple-950/20 to-black relative overflow-hidden">
       {/* Background Animation */}
       <div className="fixed inset-0 overflow-hidden pointer-events-none">
         <div className="absolute -inset-[10px] opacity-50">
@@ -966,7 +968,7 @@ export default function TradesTablePage() {
                             <TableHead className="text-gray-300 font-semibold min-w-[120px]">
                               Date/Time (UAE)
                             </TableHead>
-                            <TableHead className="text-gray-300 font-semibold min-w-[150px]">
+                            <TableHead className="text-gray-300 font-semibold min-w-[100px]">
                               Trader
                             </TableHead>
                             <TableHead className="text-gray-300 font-semibold min-w-[250px]">
@@ -986,6 +988,12 @@ export default function TradesTablePage() {
                             </TableHead>
                             <TableHead className="text-gray-300 font-semibold min-w-[100px]">
                               Exit Price
+                            </TableHead>
+                            <TableHead className="text-gray-300 font-semibold min-w-[100px]">
+                              B. Entry Price
+                            </TableHead>
+                            <TableHead className="text-gray-300 font-semibold min-w-[100px]">
+                              B. Exit Price
                             </TableHead>
                             <TableHead className="text-gray-300 font-semibold min-w-[100px]">
                               P&L (USD)
@@ -1073,6 +1081,8 @@ export default function TradesTablePage() {
                                         return "border-blue-500/50 text-blue-300";
                                       case "PENDING":
                                         return "border-yellow-500/50 text-yellow-300";
+                                      case "UNFILLED":
+                                        return "border-cyan-500/50 text-cyan-300";
                                       default:
                                         return "border-gray-500/50 text-gray-400";
                                     }
@@ -1102,6 +1112,16 @@ export default function TradesTablePage() {
                                   ? `$${trade.exit_price}`
                                   : "-"}
                               </TableCell>
+                              <TableCell className="text-blue-200 font-medium">
+                                {trade.binance_entry_price
+                                  ? `$${trade.binance_entry_price}`
+                                  : "-"}
+                              </TableCell>
+                              <TableCell className="text-purple-200 font-medium">
+                                {trade.binance_exit_price
+                                  ? `$${trade.binance_exit_price}`
+                                  : "-"}
+                              </TableCell>
                               <TableCell
                                 className={`font-medium ${
                                   trade.pnl_usd
@@ -1111,9 +1131,7 @@ export default function TradesTablePage() {
                                     : "text-gray-400"
                                 }`}
                               >
-                                {trade.pnl_usd
-                                  ? `$${trade.pnl_usd}`
-                                  : "-"}
+                                {trade.pnl_usd ? `$${trade.pnl_usd}` : "-"}
                               </TableCell>
                               <TableCell>
                                 <button
@@ -1205,7 +1223,7 @@ export default function TradesTablePage() {
                           {filteredTrades.length === 0 && (
                             <TableRow key="empty-trades">
                               <TableCell
-                                colSpan={9}
+                                colSpan={10}
                                 className="text-center py-8"
                               >
                                 <TrendingUp className="w-12 h-12 text-gray-500 mx-auto mb-4" />
