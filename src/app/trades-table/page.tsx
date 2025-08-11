@@ -56,6 +56,8 @@ interface TradesRow {
   timestamp: string;
   trade_group_id: string;
   signal_type: string;
+  order_status: string;
+  coin_symbol: string;    
   is_active: boolean;
   status: string;
   position_size: number;
@@ -478,7 +480,7 @@ export default function TradesTablePage() {
   }
 
   return (
-    <div className="min-h-screen px-6 pt-24 bg-gradient-to-br from-black via-purple-950/20 to-black relative overflow-hidden">
+    <div className="min-h-screen px-2 pt-24 bg-gradient-to-br from-black via-purple-950/20 to-black relative overflow-hidden">
       {/* Background Animation */}
       <div className="fixed inset-0 overflow-hidden pointer-events-none">
         <div className="absolute -inset-[10px] opacity-50">
@@ -965,31 +967,37 @@ export default function TradesTablePage() {
                       <Table>
                         <TableHeader>
                           <TableRow className="border-gray-700 hover:bg-gray-800/50 bg-gray-800/30">
-                            <TableHead className="text-gray-300 font-semibold min-w-[120px]">
+                            <TableHead className="text-gray-300 font-semibold min-w-[110px]">
                               Date/Time (UAE)
                             </TableHead>
-                            <TableHead className="text-gray-300 font-semibold min-w-[100px]">
+                            <TableHead className="text-gray-300 font-semibold min-w-[90px]">
                               Trader
                             </TableHead>
-                            <TableHead className="text-gray-300 font-semibold min-w-[250px]">
+                            <TableHead className="text-gray-300 font-semibold min-w-[220px]">
                               Content
                             </TableHead>
-                            <TableHead className="text-gray-300 font-semibold min-w-[120px]">
+                            <TableHead className="text-gray-300 font-semibold min-w-[60px]">
+                              Coin
+                            </TableHead>
+                            <TableHead className="text-gray-300 font-semibold min-w-[90px]">
                               Signal Type
                             </TableHead>
-                            <TableHead className="text-gray-300 font-semibold min-w-[100px]">
-                              Status
+                            <TableHead className="text-gray-300 font-semibold min-w-[90px]">
+                              Position
                             </TableHead>
-                            <TableHead className="text-gray-300 font-semibold min-w-[100px]">
-                              Position Size
+                            <TableHead className="text-gray-300 font-semibold min-w-[90px]">
+                              Order
                             </TableHead>
-                            <TableHead className="text-gray-300 font-semibold min-w-[100px]">
+                            <TableHead className="text-gray-300 font-semibold min-w-[90px]">
+                              Pos.Size
+                            </TableHead>
+                            <TableHead className="text-gray-300 font-semibold min-w-[90px]">
                               Entry Price
                             </TableHead>
                             <TableHead className="text-gray-300 font-semibold min-w-[100px]">
                               B. Entry Price
                             </TableHead>
-                            <TableHead className="text-gray-300 font-semibold min-w-[100px]">
+                            <TableHead className="text-gray-300 font-semibold min-w-[90px]">
                               B. Exit Price
                             </TableHead>
                             <TableHead className="text-gray-300 font-semibold min-w-[100px]">
@@ -1050,6 +1058,14 @@ export default function TradesTablePage() {
                               <TableCell>
                                 <Badge
                                   variant="outline"
+                                  className="border-green-500/50 text-green-300 bg-green-900/50"
+                                >
+                                  {trade.coin_symbol}
+                                </Badge>
+                              </TableCell>
+                              <TableCell>
+                                <Badge
+                                  variant="outline"
                                   className={
                                     trade.signal_type === "LONG"
                                       ? "border-purple-500/50 text-purple-300"
@@ -1076,16 +1092,46 @@ export default function TradesTablePage() {
                                         return "border-red-500/50 text-red-300";
                                       case "PARTIALLY_CLOSED":
                                         return "border-blue-500/50 text-blue-300";
+                    
                                       case "PENDING":
                                         return "border-yellow-500/50 text-yellow-300";
-                                      case "UNFILLED":
-                                        return "border-cyan-500/50 text-cyan-300";
+                                      case "CANCELLED":
+                                        return "border-red-500/50 text-red-300";                                  
+                                      
                                       default:
                                         return "border-gray-500/50 text-gray-400";
                                     }
                                   })()}
                                 >
                                   {trade.status}
+                                </Badge>
+                              </TableCell>
+                              <TableCell>
+                                <Badge
+                                  variant="outline"
+                                  className={(() => {
+                                    const status = trade.order_status
+                                      ?.toString()
+                                      .trim()
+                                      .toUpperCase();
+                                    switch (status) {
+                                      case "FILLED":
+                                        return "border-green-500/50 text-green-300";
+                                      case "PENDING":
+                                        return "border-yellow-500/50 text-yellow-300";
+                                      case "UNFILLED":
+                                        return "border-cyan-500/50 text-cyan-300";
+                                      case "CANCELLED":
+                                        return "border-red-500/50 text-red-300";
+                                      case "PARTIALLY_FILLED":
+                                        return "border-blue-500/50 text-blue-300";
+
+                                      default:
+                                        return "border-gray-500/50 text-gray-400";
+                                    }
+                                  })()}
+                                >
+                                  {trade.order_status}
                                 </Badge>
                               </TableCell>
                               <TableCell>
