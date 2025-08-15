@@ -2,24 +2,11 @@ import { NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 import type { Alert, Trade } from "@/types/wealthgroup";
 
-// Dummy data - delete these arrays to automatically switch to Supabase
-const DUMMY_ALERTS: Alert[] = [];
-
-const DUMMY_TRADES: Trade[] = [];
-
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
 const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
 
 export async function GET() {
   try {
-    // Use dummy data if available, otherwise use Supabase
-    if (DUMMY_ALERTS.length > 0 && DUMMY_TRADES.length > 0) {
-      return NextResponse.json({
-        alerts: DUMMY_ALERTS,
-        trades: DUMMY_TRADES,
-      });
-    }
-
     // Real Supabase data
     if (!supabaseUrl || !supabaseServiceKey) {
       throw new Error("Missing Supabase environment variables");

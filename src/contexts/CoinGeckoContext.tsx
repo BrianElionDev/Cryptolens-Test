@@ -331,19 +331,31 @@ export function CoinGeckoProvider({ children }: { children: React.ReactNode }) {
       for (let page = 1; page <= 3; page++) {
         console.debug(`Fetching page ${page} of coins...`);
         try {
-          // Use a public CORS proxy to avoid CORS issues with CoinGecko API
-          // This is a simple solution - for production, consider setting up your own proxy
-          const corsProxyUrl = "https://corsproxy.io/?";
+          // Use a more reliable CORS proxy or direct API call with proper error handling
           const targetUrl = `https://api.coingecko.com/api/v3/coins/markets?vs_currency=usd&order=market_cap_desc&per_page=250&page=${page}&sparkline=false`;
 
-          const response = await axios.get(
-            corsProxyUrl + encodeURIComponent(targetUrl),
-            {
+          let response;
+          try {
+            // Try direct API call first
+            response = await axios.get(targetUrl, {
               headers: {
                 Accept: "application/json",
               },
-            }
-          );
+              timeout: 10000,
+            });
+          } catch {
+            // Fallback to CORS proxy if direct call fails
+            const corsProxyUrl = "https://corsproxy.io/?";
+            response = await axios.get(
+              corsProxyUrl + encodeURIComponent(targetUrl),
+              {
+                headers: {
+                  Accept: "application/json",
+                },
+                timeout: 15000,
+              }
+            );
+          }
 
           if (!response.data || !Array.isArray(response.data)) {
             throw new Error("Invalid response from CoinGecko API");
@@ -373,26 +385,47 @@ export function CoinGeckoProvider({ children }: { children: React.ReactNode }) {
               continue;
             }
 
-            if (error.response?.status) {
-              throw new Error(
-                `CoinGecko API error: ${error.response.status} ${error.response.statusText}`
+            if (
+              error.code === "NETWORK_ERROR" ||
+              error.message.includes("Network Error")
+            ) {
+              console.warn(
+                "Network error, skipping this page and continuing..."
               );
+              continue; // Skip this page and continue with the next one
+            }
+
+            if (error.response?.status) {
+              console.warn(
+                `CoinGecko API error: ${error.response.status} ${error.response.statusText}, skipping page ${page}`
+              );
+              continue; // Skip this page and continue with the next one
             }
           }
 
-          throw error;
+          // For any other error, log it and continue with next page
+          console.warn(
+            `Unexpected error on page ${page}, continuing...`,
+            error
+          );
+          continue;
         }
       }
 
-      console.debug("Successfully fetched coin data:", {
-        coinsReceived: allCoins.length,
-        firstCoin: allCoins[0]?.name,
-        lastCoin: allCoins[allCoins.length - 1]?.name,
-        sampleSymbols: allCoins.slice(0, 5).map((c) => c.symbol),
-      });
+      // Only update state if we have some data
+      if (allCoins.length > 0) {
+        console.debug("Successfully fetched coin data:", {
+          coinsReceived: allCoins.length,
+          firstCoin: allCoins[0]?.name,
+          lastCoin: allCoins[allCoins.length - 1]?.name,
+          sampleSymbols: allCoins.slice(0, 5).map((c) => c.symbol),
+        });
 
-      setTopCoins(allCoins);
-      setLastFetchTime(Date.now());
+        setTopCoins(allCoins);
+        setLastFetchTime(Date.now());
+      } else {
+        console.warn("No coin data received from any source");
+      }
 
       // After fetching CoinGecko, fetch CMC data
       await fetchCmcData();
