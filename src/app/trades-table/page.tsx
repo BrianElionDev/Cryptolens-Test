@@ -453,19 +453,19 @@ export default function TradesTablePage() {
           </p>
         </div>
 
-        <Tabs defaultValue="trading-log" className="w-full">
+        <Tabs defaultValue="trades" className="w-full">
           <TabsList className="grid w-full grid-cols-2 bg-gray-900/50 border-gray-700">
-            <TabsTrigger
-              value="trading-log"
-              className="data-[state=active]:bg-gray-800"
-            >
-              Trading Log
-            </TabsTrigger>
             <TabsTrigger
               value="trades"
               className="data-[state=active]:bg-gray-800"
             >
               Trades
+            </TabsTrigger>
+            <TabsTrigger
+              value="trading-log"
+              className="data-[state=active]:bg-gray-800"
+            >
+              Trading Log
             </TabsTrigger>
           </TabsList>
 
