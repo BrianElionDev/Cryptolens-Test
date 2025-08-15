@@ -1,8 +1,7 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import React, { useState, useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { createClient } from "@supabase/supabase-js";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
@@ -32,20 +31,12 @@ import {
   ArrowUpDown,
   Activity,
   ExternalLink,
+  ChevronDown,
+  ChevronRight,
 } from "lucide-react";
 import { Alert, Trade } from "@/types/wealthgroup";
 import { formatInTimeZone } from "date-fns-tz";
 import { BinanceResponseModal } from "@/components/modals/BinanceResponseModal";
-
-interface TradingLogRow {
-  id: string;
-  timestamp: string;
-  text_of_signal: string;
-  state: string;
-  coin: string;
-  action_1: string;
-  action_2: string;
-}
 
 interface TradesRow {
   id: number;
@@ -57,7 +48,7 @@ interface TradesRow {
   trade_group_id: string;
   signal_type: string;
   order_status: string;
-  coin_symbol: string;    
+  coin_symbol: string;
   is_active: boolean;
   status: string;
   position_size: number;
@@ -71,46 +62,15 @@ interface TradesRow {
   parsed_signal: object;
 }
 
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
-const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
+async function fetchWealthgroupData() {
+  const response = await fetch("/api/wealthgroup");
 
-const supabase = createClient(supabaseUrl, supabaseAnonKey);
-
-async function fetchTradingLogData() {
-  const { data, error } = await supabase
-    .from("trading_log")
-    .select("*")
-    .order("timestamp", { ascending: false })
-    .limit(1000);
-
-  if (error) {
-    throw new Error(`Failed to fetch trading log: ${error.message}`);
+  if (!response.ok) {
+    const errorData = await response.json();
+    throw new Error(errorData.error || "Failed to fetch wealthgroup data");
   }
 
-  // Debug: Log the first row to see actual field names and data
-  if (data && data.length > 0) {
-    console.log("First row from trading_log:", data[0]);
-    console.log("Available fields:", Object.keys(data[0]));
-    console.log("All unique states:", [
-      ...new Set(data.map((row: TradingLogRow) => row.state)),
-    ]);
-  }
-
-  return data;
-}
-
-async function fetchTradesData() {
-  const { data, error } = await supabase
-    .from("trades")
-    .select("*")
-    .order("timestamp", { ascending: false })
-    .limit(1000);
-
-  if (error) {
-    throw new Error(`Failed to fetch trades: ${error.message}`);
-  }
-
-  return data;
+  return await response.json();
 }
 
 interface TradeEntry {
@@ -132,13 +92,14 @@ export default function TradesTablePage() {
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedState, setSelectedState] = useState("all");
   const [selectedCoin, setSelectedCoin] = useState("all");
+  const [selectedTraderLog, setSelectedTraderLog] = useState("@Johnny");
   const [sortBy, setSortBy] = useState<"newest" | "oldest">("newest");
   const [resultLimit, setResultLimit] = useState<number>(9999);
   const [dateRange, setDateRange] = useState("all");
 
   // Trades tab filters
   const [tradesSearchTerm, setTradesSearchTerm] = useState("");
-  const [selectedTrader, setSelectedTrader] = useState("all");
+  const [selectedTrader, setSelectedTrader] = useState("@Johnny");
   const [selectedSignalType, setSelectedSignalType] = useState("all");
   const [selectedStatus, setSelectedStatus] = useState("all");
   const [selectedActiveStatus, setSelectedActiveStatus] = useState("all");
@@ -157,81 +118,75 @@ export default function TradesTablePage() {
   );
 
   const { data, isLoading, error } = useQuery({
-    queryKey: ["trading_log"],
-    queryFn: fetchTradingLogData,
-    refetchInterval: 30000,
+    queryKey: ["wealthgroup_data"],
+    queryFn: fetchWealthgroupData,
+    refetchInterval: 60000, // 1 minute
   });
 
-  const {
-    data: tradesData,
-    isLoading: tradesLoading,
-    error: tradesError,
-  } = useQuery({
-    queryKey: ["trades"],
-    queryFn: fetchTradesData,
-    refetchInterval: 30000,
-  });
+  // Expanded rows state for trades
+  const [expandedRows, setExpandedRows] = useState<Set<number>>(new Set());
 
-  // Create entries from trading_log view
-  const allEntries = useMemo((): TradeEntry[] => {
-    const tradingLogData = data || [];
-    return tradingLogData.map((row: TradingLogRow) => {
-      const isEntry = row.state === "entry";
+  const toggleRowExpansion = (tradeId: number) => {
+    const newExpandedRows = new Set(expandedRows);
+    if (newExpandedRows.has(tradeId)) {
+      newExpandedRows.delete(tradeId);
+    } else {
+      newExpandedRows.add(tradeId);
+    }
+    setExpandedRows(newExpandedRows);
+  };
 
-      return {
-        id: row.id,
-        type: isEntry ? "trade" : "alert",
-        timestamp: row.timestamp,
-        content: row.text_of_signal,
-        state: row.state,
-        coin: row.coin,
-        action_1: row.action_1,
-        action_2: row.action_2,
-        trade: isEntry
-          ? {
-              id: parseInt(row.id) || 0,
-              discord_id: row.id,
-              timestamp: row.timestamp,
-              content: row.text_of_signal,
-              structured: "",
-              trader: "",
-              parsed_signal: {
-                coin_symbol: row.coin,
-                position_type: row.action_1?.includes("LONG")
-                  ? "LONG"
-                  : "SHORT",
-                entry_prices: row.action_1?.match(/[\d.]+/g)?.map(Number) || [],
-                stop_loss: parseFloat(
-                  row.action_2?.match(/[\d.]+/)?.[0] || "0"
-                ),
-                take_profits: null,
-                order_type: "market",
-                risk_level: null,
-              },
-            }
-          : undefined,
-        alert: !isEntry
-          ? {
-              discord_id: row.id,
-              timestamp: row.timestamp,
-              content: row.text_of_signal,
-              trader: "",
-              trade: "",
-            }
-          : undefined,
-        originalTradeId: undefined,
-      };
-    });
+  // Process wealthgroup data
+  const tradesData = useMemo(() => {
+    if (!data?.trades) return [];
+    return data.trades;
   }, [data]);
+
+  const alertsData = useMemo(() => {
+    if (!data?.alerts) return [];
+    return data.alerts;
+  }, [data]);
+
+  // Create entries from wealthgroup data
+  const allEntries = useMemo((): TradeEntry[] => {
+    const trades = tradesData || [];
+    const alerts = alertsData || [];
+
+    const tradeEntries: TradeEntry[] = trades.map((trade: Trade) => ({
+      id: trade.id.toString(),
+      type: "trade" as const,
+      timestamp: trade.timestamp,
+      content: trade.content,
+      state: "entry",
+      coin: trade.parsed_signal?.coin_symbol || "",
+      action_1: trade.parsed_signal?.entry_prices?.join(", ") || "",
+      action_2: trade.parsed_signal?.stop_loss?.toString() || null,
+      trade: trade,
+      originalTradeId: trade.id,
+    }));
+
+    const alertEntries: TradeEntry[] = alerts.map((alert: Alert) => ({
+      id: alert.discord_id,
+      type: "alert" as const,
+      timestamp: alert.timestamp,
+      content: alert.content,
+      state: "alert",
+      coin: alert.parsed_alert?.coin_symbol || "",
+      action_1: alert.parsed_alert?.action_determined?.action_description || "",
+      action_2:
+        alert.parsed_alert?.action_determined?.stop_loss?.toString() || null,
+      alert: alert,
+      originalTradeId: alert.trade, // trade field contains the discord_id of the related trade
+    }));
+
+    return [...tradeEntries, ...alertEntries];
+  }, [tradesData, alertsData]);
 
   // Get unique states from database
   const tradeTypes = useMemo((): string[] => {
-    const tradingLogData = data || [];
-    const uniqueStates = new Set(
-      tradingLogData.map((row: TradingLogRow) => row.state)
-    );
-    return Array.from(uniqueStates).sort();
-  }, [data]);
+    const uniqueStates = new Set(allEntries.map((entry) => entry.state));
+    return Array.from(uniqueStates).sort() as string[];
+  }, [allEntries]);
 
   // Get unique coins
   const coins = useMemo((): string[] => {
@@ -240,38 +195,36 @@ export default function TradesTablePage() {
         .filter((entry) => entry.coin)
         .map((entry) => entry.coin.toLowerCase())
     );
-    return Array.from(uniqueCoins).sort();
+    return Array.from(uniqueCoins).sort() as string[];
   }, [allEntries]);
 
   // Get unique values for trades filters
   const traders = useMemo((): string[] => {
-    if (!tradesData) return [];
     const uniqueTraders = new Set(
       tradesData
-        .filter((trade: TradesRow) => trade.trader)
-        .map((trade: TradesRow) => trade.trader)
+        .filter((trade: Trade) => trade.trader)
+        .map((trade: Trade) => trade.trader)
     );
-    return Array.from(uniqueTraders).sort();
+    return Array.from(uniqueTraders).sort() as string[];
   }, [tradesData]);
 
   const signalTypes = useMemo((): string[] => {
-    if (!tradesData) return [];
     const uniqueSignalTypes = new Set(
       tradesData
-        .filter((trade: TradesRow) => trade.signal_type)
-        .map((trade: TradesRow) => trade.signal_type)
+        .filter((trade: Trade) => trade.parsed_signal?.position_type)
+        .map((trade: Trade) => trade.parsed_signal!.position_type)
     );
-    return Array.from(uniqueSignalTypes).sort();
+    return Array.from(uniqueSignalTypes).sort() as string[];
   }, [tradesData]);
 
+  // Get unique statuses for trades
   const statuses = useMemo((): string[] => {
-    if (!tradesData) return [];
     const uniqueStatuses = new Set(
       tradesData
-        .filter((trade: TradesRow) => trade.status)
-        .map((trade: TradesRow) => trade.status.toString())
+        .filter((trade: Trade) => trade.status)
+        .map((trade: Trade) => trade.status)
     );
-    return Array.from(uniqueStatuses).sort();
+    return Array.from(uniqueStatuses).sort() as string[];
   }, [tradesData]);
 
   // Date range helper function
@@ -337,6 +290,11 @@ export default function TradesTablePage() {
         selectedCoin === "all" ||
         entry.coin?.toLowerCase() === selectedCoin.toLowerCase();
 
+      const matchesTrader =
+        selectedTraderLog === "all" ||
+        entry.trade?.trader === selectedTraderLog ||
+        entry.alert?.trader === selectedTraderLog;
+
       // Date range filtering
       const entryDate = new Date(entry.timestamp);
       const dateRangeFilter = getDateRange(dateRange);
@@ -344,7 +302,13 @@ export default function TradesTablePage() {
         !dateRangeFilter ||
         (entryDate >= dateRangeFilter.from && entryDate <= dateRangeFilter.to);
 
-      return matchesSearch && matchesState && matchesCoin && matchesDateRange;
+      return (
+        matchesSearch &&
+        matchesState &&
+        matchesCoin &&
+        matchesTrader &&
+        matchesDateRange
+      );
     });
 
     const sorted = filtered.sort((a: TradeEntry, b: TradeEntry) => {
@@ -360,6 +324,7 @@ export default function TradesTablePage() {
     searchTerm,
     selectedState,
     selectedCoin,
+    selectedTraderLog,
     sortBy,
     resultLimit,
     dateRange,
@@ -367,28 +332,21 @@ export default function TradesTablePage() {
 
   // Filter and sort trades data
   const filteredTrades = useMemo(() => {
-    if (!tradesData) return [];
-
-    const filtered = tradesData.filter((trade: TradesRow) => {
+    const filtered = tradesData.filter((trade: Trade) => {
       const matchesSearch =
         tradesSearchTerm === "" ||
         trade.content.toLowerCase().includes(tradesSearchTerm.toLowerCase()) ||
-        trade.trader.toLowerCase().includes(tradesSearchTerm.toLowerCase());
+        trade.trader.toLowerCase().includes(tradesSearchTerm.toLowerCase()) ||
+        trade.parsed_signal?.coin_symbol
+          ?.toLowerCase()
+          .includes(tradesSearchTerm.toLowerCase());
 
       const matchesTrader =
         selectedTrader === "all" || trade.trader === selectedTrader;
 
       const matchesSignalType =
         selectedSignalType === "all" ||
-        trade.signal_type === selectedSignalType;
-
-      const matchesStatus =
-        selectedStatus === "all" || trade.status.toString() === selectedStatus;
-
-      const matchesActiveStatus =
-        selectedActiveStatus === "all" ||
-        (selectedActiveStatus === "active" && trade.is_active) ||
-        (selectedActiveStatus === "inactive" && !trade.is_active);
+        trade.parsed_signal?.position_type === selectedSignalType;
 
       // Date range filtering
       const tradeDate = new Date(trade.timestamp);
@@ -399,16 +357,11 @@ export default function TradesTablePage() {
           tradeDate <= tradesDateRangeFilter.to);
 
       return (
-        matchesSearch &&
-        matchesTrader &&
-        matchesSignalType &&
-        matchesStatus &&
-        matchesActiveStatus &&
-        matchesDateRange
+        matchesSearch && matchesTrader && matchesSignalType && matchesDateRange
       );
     });
 
-    const sorted = filtered.sort((a: TradesRow, b: TradesRow) => {
+    const sorted = filtered.sort((a: Trade, b: Trade) => {
       const dateA = new Date(a.timestamp).getTime();
       const dateB = new Date(b.timestamp).getTime();
       return tradesSortBy === "newest" ? dateB - dateA : dateA - dateB;
@@ -421,8 +374,6 @@ export default function TradesTablePage() {
     tradesSearchTerm,
     selectedTrader,
     selectedSignalType,
-    selectedStatus,
-    selectedActiveStatus,
     tradesSortBy,
     tradesResultLimit,
     tradesDateRange,
@@ -558,7 +509,7 @@ export default function TradesTablePage() {
                   </SelectTrigger>
                   <SelectContent className="bg-gray-900 border-gray-700">
                     <SelectItem value="all">All Types</SelectItem>
-                    {tradeTypes.map((type, index) => (
+                    {tradeTypes.map((type, index: number) => (
                       <SelectItem
                         key={`tradetype-${type}-${index}`}
                         value={type}
@@ -576,9 +527,30 @@ export default function TradesTablePage() {
                   </SelectTrigger>
                   <SelectContent className="bg-gray-900 border-gray-700">
                     <SelectItem value="all">All Coins</SelectItem>
-                    {coins.map((coin, index) => (
+                    {coins.map((coin, index: number) => (
                       <SelectItem key={`coin-${coin}-${index}`} value={coin}>
                         {coin}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+
+                <Select
+                  value={selectedTraderLog}
+                  onValueChange={setSelectedTraderLog}
+                >
+                  <SelectTrigger className="w-[140px] bg-gray-900/50 border-gray-700 text-white">
+                    <Filter className="w-4 h-4 mr-2" />
+                    <SelectValue placeholder="Trader" />
+                  </SelectTrigger>
+                  <SelectContent className="bg-gray-900 border-gray-700">
+                    <SelectItem value="all">All Traders</SelectItem>
+                    {traders.map((trader, index: number) => (
+                      <SelectItem
+                        key={`traderlog-${trader}-${index}`}
+                        value={trader}
+                      >
+                        {trader}
                       </SelectItem>
                     ))}
                   </SelectContent>
@@ -660,6 +632,9 @@ export default function TradesTablePage() {
                         <TableHead className="text-gray-300 font-semibold min-w-[120px]">
                           Date/Time (UAE)
                         </TableHead>
+                        <TableHead className="text-gray-300 font-semibold min-w-[90px]">
+                          Trader
+                        </TableHead>
                         <TableHead className="text-gray-300 font-semibold min-w-[300px]">
                           Text of Signal
                         </TableHead>
@@ -678,94 +653,106 @@ export default function TradesTablePage() {
                       </TableRow>
                     </TableHeader>
                     <TableBody>
-                      {filteredEntries.map((entry: TradeEntry, index) => {
-                        return (
-                          <TableRow
-                            key={`${entry.id}-${entry.type}-${index}`}
-                            className={`border-gray-700 hover:bg-gray-800/30 transition-colors ${
-                              entry.type === "alert"
-                                ? "bg-gradient-to-r from-slate-800/30 to-blue-900/20"
-                                : ""
-                            }`}
-                          >
-                            <TableCell>
-                              {entry.type === "alert" && (
-                                <div className="flex items-center justify-center">
-                                  <div className="w-2 h-2 rounded-full bg-green-500" />
-                                </div>
-                              )}
-                            </TableCell>
-                            <TableCell className="font-mono text-sm text-gray-300">
-                              <div className="flex flex-col">
-                                <span className="font-medium">
-                                  {formatInTimeZone(
-                                    new Date(entry.timestamp),
-                                    "Asia/Dubai",
-                                    "MMM dd, yyyy"
-                                  )}
-                                </span>
-                                <span className="text-xs text-gray-500">
-                                  {formatInTimeZone(
-                                    new Date(entry.timestamp),
-                                    "Asia/Dubai",
-                                    "HH:mm"
-                                  )}
-                                </span>
-                              </div>
-                            </TableCell>
-                            <TableCell className="max-w-[300px]">
-                              <div className="flex items-start gap-2">
+                      {filteredEntries.map(
+                        (entry: TradeEntry, index: number) => {
+                          return (
+                            <TableRow
+                              key={`${entry.id}-${entry.type}-${index}`}
+                              className={`border-gray-700 hover:bg-gray-800/30 transition-colors ${
+                                entry.type === "alert"
+                                  ? "bg-gradient-to-r from-slate-800/30 to-blue-900/20"
+                                  : ""
+                              }`}
+                            >
+                              <TableCell>
                                 {entry.type === "alert" && (
-                                  <div className="text-gray-500 text-xs font-mono mt-0.5">
-                                    └─
+                                  <div className="flex items-center justify-center">
+                                    <div className="w-2 h-2 rounded-full bg-green-500" />
                                   </div>
                                 )}
-                                <div
-                                  className="text-gray-200 text-sm leading-relaxed"
-                                  title={entry.content}
-                                >
-                                  {entry.content}
-                                </div>
-                              </div>
-                            </TableCell>
-                            <TableCell>
-                              <Badge
-                                variant="outline"
-                                className={
-                                  entry.type === "trade"
-                                    ? "border-blue-500/50 text-blue-300"
-                                    : "border-green-500/50 text-green-300"
-                                }
-                              >
-                                {entry.type === "trade"
-                                  ? "Entry"
-                                  : getStateFromSignal(
-                                      entry.trade!,
-                                      entry.alert
+                              </TableCell>
+                              <TableCell className="font-mono text-sm text-gray-300">
+                                <div className="flex flex-col">
+                                  <span className="font-medium">
+                                    {formatInTimeZone(
+                                      new Date(entry.timestamp),
+                                      "Asia/Dubai",
+                                      "MMM dd, yyyy"
                                     )}
-                              </Badge>
-                            </TableCell>
-                            <TableCell>
-                              <span className="text-blue-300 font-medium">
-                                {entry.coin || "N/A"}
-                              </span>
-                            </TableCell>
-                            <TableCell className="max-w-[250px]">
-                              <div className="text-yellow-300 text-sm truncate">
-                                {entry.action_1 || "-"}
-                              </div>
-                            </TableCell>
-                            <TableCell className="max-w-[250px]">
-                              <div className="text-red-300 text-sm truncate">
-                                {entry.action_2 || "-"}
-                              </div>
-                            </TableCell>
-                          </TableRow>
-                        );
-                      })}
+                                  </span>
+                                  <span className="text-xs text-gray-500">
+                                    {formatInTimeZone(
+                                      new Date(entry.timestamp),
+                                      "Asia/Dubai",
+                                      "HH:mm"
+                                    )}
+                                  </span>
+                                </div>
+                              </TableCell>
+                              <TableCell>
+                                <Badge
+                                  variant="outline"
+                                  className="border-orange-500/50 text-orange-300 bg-orange-900/50"
+                                >
+                                  {entry.trade?.trader ||
+                                    entry.alert?.trader ||
+                                    "N/A"}
+                                </Badge>
+                              </TableCell>
+                              <TableCell className="max-w-[300px]">
+                                <div className="flex items-start gap-2">
+                                  {entry.type === "alert" && (
+                                    <div className="text-gray-500 text-xs font-mono mt-0.5">
+                                      └─
+                                    </div>
+                                  )}
+                                  <div
+                                    className="text-gray-200 text-sm leading-relaxed"
+                                    title={entry.content}
+                                  >
+                                    {entry.content}
+                                  </div>
+                                </div>
+                              </TableCell>
+                              <TableCell>
+                                <Badge
+                                  variant="outline"
+                                  className={
+                                    entry.type === "trade"
+                                      ? "border-blue-500/50 text-blue-300"
+                                      : "border-green-500/50 text-green-300"
+                                  }
+                                >
+                                  {entry.type === "trade"
+                                    ? "Entry"
+                                    : getStateFromSignal(
+                                        entry.trade!,
+                                        entry.alert
+                                      )}
+                                </Badge>
+                              </TableCell>
+                              <TableCell>
+                                <span className="text-blue-300 font-medium">
+                                  {entry.coin || "N/A"}
+                                </span>
+                              </TableCell>
+                              <TableCell className="max-w-[250px]">
+                                <div className="text-yellow-300 text-sm truncate">
+                                  {entry.action_1 || "-"}
+                                </div>
+                              </TableCell>
+                              <TableCell className="max-w-[250px]">
+                                <div className="text-red-300 text-sm truncate">
+                                  {entry.action_2 || "-"}
+                                </div>
+                              </TableCell>
+                            </TableRow>
+                          );
+                        }
+                      )}
                       {filteredEntries.length === 0 && (
                         <TableRow key="empty-entries">
-                          <TableCell colSpan={7} className="text-center py-8">
+                          <TableCell colSpan={8} className="text-center py-8">
                             <TrendingUp className="w-12 h-12 text-gray-500 mx-auto mb-4" />
                             <p className="text-gray-400">
                               {searchTerm ||
@@ -786,11 +773,11 @@ export default function TradesTablePage() {
           </TabsContent>
 
           <TabsContent value="trades" className="mt-6">
-            {tradesLoading ? (
+            {isLoading ? (
               <div className="flex items-center justify-center py-8">
                 <LoadingSpinner />
               </div>
-            ) : tradesError ? (
+            ) : error ? (
               <Card className="bg-red-950/20 border-red-500/30">
                 <CardContent className="p-6 text-center">
                   <AlertTriangle className="w-12 h-12 text-red-400 mx-auto mb-4" />
@@ -798,9 +785,7 @@ export default function TradesTablePage() {
                     Error Loading Trades
                   </h2>
                   <p className="text-red-300">
-                    {tradesError instanceof Error
-                      ? tradesError.message
-                      : "Unknown error occurred"}
+                    {error ? String(error) : "Unknown error occurred"}
                   </p>
                 </CardContent>
               </Card>
@@ -829,7 +814,7 @@ export default function TradesTablePage() {
                       </SelectTrigger>
                       <SelectContent className="bg-gray-900 border-gray-700">
                         <SelectItem value="all">All Traders</SelectItem>
-                        {traders.map((trader, index) => (
+                        {traders.map((trader, index: number) => (
                           <SelectItem
                             key={`trader-${trader}-${index}`}
                             value={trader}
@@ -850,7 +835,7 @@ export default function TradesTablePage() {
                       </SelectTrigger>
                       <SelectContent className="bg-gray-900 border-gray-700">
                         <SelectItem value="all">All Types</SelectItem>
-                        {signalTypes.map((type, index) => (
+                        {signalTypes.map((type, index: number) => (
                           <SelectItem
                             key={`signaltype-${type}-${index}`}
                             value={type}
@@ -871,7 +856,7 @@ export default function TradesTablePage() {
                       </SelectTrigger>
                       <SelectContent className="bg-gray-900 border-gray-700">
                         <SelectItem value="all">All Status</SelectItem>
-                        {statuses.map((status, index) => (
+                        {statuses.map((status, index: number) => (
                           <SelectItem
                             key={`status-${status}-${index}`}
                             value={status}
@@ -967,6 +952,7 @@ export default function TradesTablePage() {
                       <Table>
                         <TableHeader>
                           <TableRow className="border-gray-700 hover:bg-gray-800/50 bg-gray-800/30">
+                            <TableHead className="text-gray-300 w-[40px] font-semibold"></TableHead>
                             <TableHead className="text-gray-300 font-semibold min-w-[110px]">
                               Date/Time (UAE)
                             </TableHead>
@@ -991,9 +977,6 @@ export default function TradesTablePage() {
                             <TableHead className="text-gray-300 font-semibold min-w-[90px]">
                               Pos.Size
                             </TableHead>
-                            <TableHead className="text-gray-300 font-semibold min-w-[90px]">
-                              Entry Price
-                            </TableHead>
                             <TableHead className="text-gray-300 font-semibold min-w-[100px]">
                               B. Entry Price
                             </TableHead>
@@ -1009,255 +992,421 @@ export default function TradesTablePage() {
                           </TableRow>
                         </TableHeader>
                         <TableBody>
-                          {filteredTrades.map((trade: TradesRow, index) => (
-                            <TableRow
-                              key={`trade-${trade.id}-${index}`}
-                              className={`border-gray-700 hover:bg-gray-800/30 transition-colors ${
-                                selectedTrade?.id === trade.id &&
-                                showBinanceModal
-                                  ? "bg-blue-500/10 border-blue-500/30 shadow-lg shadow-blue-500/20"
-                                  : highlightedTradeId === trade.id
-                                  ? "bg-blue-500/20 border-blue-500/20"
-                                  : ""
-                              }`}
-                            >
-                              <TableCell className="font-mono text-sm text-gray-300">
-                                <div className="flex flex-col">
-                                  <span className="font-medium">
-                                    {formatInTimeZone(
-                                      new Date(trade.timestamp),
-                                      "Asia/Dubai",
-                                      "MMM dd, yyyy"
-                                    )}
-                                  </span>
-                                  <span className="text-xs text-gray-500">
-                                    {formatInTimeZone(
-                                      new Date(trade.timestamp),
-                                      "Asia/Dubai",
-                                      "HH:mm"
-                                    )}
-                                  </span>
-                                </div>
-                              </TableCell>
-                              <TableCell>
-                                <Badge
-                                  variant="outline"
-                                  className="border-orange-500/50 text-orange-300 bg-orange-900/50"
-                                >
-                                  {trade.trader}
-                                </Badge>
-                              </TableCell>
-                              <TableCell className="max-w-[250px]">
-                                <div
-                                  className="text-gray-200 text-sm leading-relaxed truncate"
-                                  title={trade.content}
-                                >
-                                  {trade.content}
-                                </div>
-                              </TableCell>
-                              <TableCell>
-                                <Badge
-                                  variant="outline"
-                                  className="border-green-500/50 text-green-300 bg-green-900/50"
-                                >
-                                  {trade.coin_symbol}
-                                </Badge>
-                              </TableCell>
-                              <TableCell>
-                                <Badge
-                                  variant="outline"
-                                  className={
-                                    trade.signal_type === "LONG"
-                                      ? "border-purple-500/50 text-purple-300"
-                                      : trade.signal_type === "SHORT"
-                                      ? "border-cyan-500/50 text-cyan-300"
-                                      : "border-gray-500/50 text-gray-300"
-                                  }
-                                >
-                                  {trade.signal_type}
-                                </Badge>
-                              </TableCell>
-                              <TableCell>
-                                <Badge
-                                  variant="outline"
-                                  className={(() => {
-                                    const status = trade.status
-                                      ?.toString()
-                                      .trim()
-                                      .toUpperCase();
-                                    switch (status) {
-                                      case "OPEN":
-                                        return "border-green-500/50 text-green-300";
-                                      case "CLOSED":
-                                        return "border-red-500/50 text-red-300";
-                                      case "PARTIALLY_CLOSED":
-                                        return "border-blue-500/50 text-blue-300";
-                    
-                                      case "PENDING":
-                                        return "border-yellow-500/50 text-yellow-300";
-                                      case "CANCELLED":
-                                        return "border-red-500/50 text-red-300";                                  
-                                      
-                                      default:
-                                        return "border-gray-500/50 text-gray-400";
-                                    }
-                                  })()}
-                                >
-                                  {trade.status}
-                                </Badge>
-                              </TableCell>
-                              <TableCell>
-                                <Badge
-                                  variant="outline"
-                                  className={(() => {
-                                    const status = trade.order_status
-                                      ?.toString()
-                                      .trim()
-                                      .toUpperCase();
-                                    switch (status) {
-                                      case "FILLED":
-                                        return "border-green-500/50 text-green-300";
-                                      case "PENDING":
-                                        return "border-yellow-500/50 text-yellow-300";
-                                      case "UNFILLED":
-                                        return "border-cyan-500/50 text-cyan-300";
-                                      case "CANCELLED":
-                                        return "border-red-500/50 text-red-300";
-                                      case "PARTIALLY_FILLED":
-                                        return "border-blue-500/50 text-blue-300";
-
-                                      default:
-                                        return "border-gray-500/50 text-gray-400";
-                                    }
-                                  })()}
-                                >
-                                  {trade.order_status}
-                                </Badge>
-                              </TableCell>
-                              <TableCell>
-                                {trade.position_size === null ? (
-                                  "-"
-                                ) : (
-                                  <span className="text-green-300">
-                                    {trade.position_size}
-                                  </span>
-                                )}
-                              </TableCell>
-                              <TableCell className="text-blue-300 font-medium">
-                                {trade.entry_price && trade.entry_price > 0
-                                  ? `$${trade.entry_price}`
-                                  : trade.entry_price && trade.entry_price < 0
-                                  ? `-$${Math.abs(trade.entry_price)}`
-                                  : "-"}
-                              </TableCell>
-                              <TableCell className="text-blue-200 font-medium">
-                                {trade.binance_entry_price
-                                  ? `$${trade.binance_entry_price}`
-                                  : "-"}
-                              </TableCell>
-                              <TableCell className="text-purple-200 font-medium">
-                                {trade.binance_exit_price
-                                  ? `$${trade.binance_exit_price}`
-                                  : "-"}
-                              </TableCell>
-                              <TableCell
-                                className={`font-medium ${
-                                  trade.pnl_usd
-                                    ? trade.pnl_usd > 0
-                                      ? "text-green-400"
-                                      : "text-red-400"
-                                    : "text-gray-400"
-                                }`}
+                          {filteredTrades.map(
+                            (trade: TradesRow, index: number) => (
+                              <React.Fragment
+                                key={`trade-${trade.id}-${index}`}
                               >
-                                {trade.pnl_usd ? `$${trade.pnl_usd}` : "-"}
-                              </TableCell>
-                              <TableCell>
-                                <button
-                                  onClick={(e) => {
-                                    const rect =
-                                      e.currentTarget.getBoundingClientRect();
-                                    const tableContainer =
-                                      e.currentTarget.closest(
-                                        ".overflow-x-auto"
-                                      );
-                                    const tableRect =
-                                      tableContainer?.getBoundingClientRect();
-                                    const viewportWidth = window.innerWidth;
-                                    const viewportHeight = window.innerHeight;
-
-                                    // Position modal to align with table
-                                    let x = rect.left;
-                                    let y = rect.top + rect.height + 10; // 10px below the button
-
-                                    // Check if modal would go off-screen and adjust
-                                    const modalWidth = 400;
-                                    const modalHeight = 500; // Increased height estimate
-
-                                    // Horizontal positioning - prioritize viewport boundaries
-                                    if (x + modalWidth > viewportWidth) {
-                                      x = viewportWidth - modalWidth - 20; // 20px margin from right
-                                    }
-                                    if (x < 20) {
-                                      x = 20; // 20px margin from left
-                                    }
-
-                                    // Vertical positioning - check both table and viewport
-                                    if (y + modalHeight > viewportHeight) {
-                                      // Try to show above the button first
-                                      y = rect.top - modalHeight - 10;
-
-                                      // If still off-screen, position at top of viewport
-                                      if (y < 20) {
-                                        y = 20;
-                                      }
-                                    }
-
-                                    // If table container exists, make final adjustments within table bounds
-                                    if (tableRect) {
-                                      // Ensure modal doesn't go outside table horizontally
-                                      if (x + modalWidth > tableRect.right) {
-                                        x = tableRect.right - modalWidth - 10;
-                                      }
-                                      if (x < tableRect.left) {
-                                        x = tableRect.left + 10;
-                                      }
-                                    }
-
-                                    setModalPosition({ x, y });
-                                    setSelectedTrade(trade);
-                                    setShowBinanceModal(true);
-                                    setHighlightedTradeId(trade.id);
-
-                                    // Ensure the modal is visible by scrolling if needed
-                                    setTimeout(() => {
-                                      const modalElement =
-                                        document.querySelector(
-                                          '[data-modal="binance-response"]'
-                                        );
-                                      if (modalElement) {
-                                        modalElement.scrollIntoView({
-                                          behavior: "smooth",
-                                          block: "nearest",
-                                          inline: "nearest",
-                                        });
-                                      }
-                                    }, 100);
-                                  }}
-                                  className={`p-2 rounded-lg transition-all duration-200 ${
+                                <TableRow
+                                  className={`border-gray-700 hover:bg-gray-800/30 transition-colors ${
                                     selectedTrade?.id === trade.id &&
                                     showBinanceModal
-                                      ? "bg-blue-500/20 text-blue-200 border border-blue-500/50 shadow-lg shadow-blue-500/20"
+                                      ? "bg-blue-500/10 border-blue-500/30 shadow-lg shadow-blue-500/20"
                                       : highlightedTradeId === trade.id
-                                      ? "bg-blue-500/30 text-blue-300 border border-blue-500/30"
-                                      : "hover:bg-gray-800/50 text-gray-400 hover:text-blue-300 border border-transparent hover:border-blue-500/30"
+                                      ? "bg-blue-500/20 border-blue-500/20"
+                                      : ""
                                   }`}
-                                  title="View Binance Response"
                                 >
-                                  <ExternalLink className="w-4 h-4" />
-                                </button>
-                              </TableCell>
-                            </TableRow>
-                          ))}
+                                  <TableCell>
+                                    <button
+                                      onClick={() =>
+                                        toggleRowExpansion(trade.id)
+                                      }
+                                      className="p-1 hover:bg-gray-700/50 rounded transition-colors"
+                                      disabled={
+                                        !alertsData.some(
+                                          (alert: Alert) =>
+                                            alert.trade === trade.discord_id ||
+                                            alert.parsed_alert
+                                              ?.original_trade_id === trade.id
+                                        )
+                                      }
+                                    >
+                                      {alertsData.some(
+                                        (alert: Alert) =>
+                                          alert.trade === trade.discord_id ||
+                                          alert.parsed_alert
+                                            ?.original_trade_id === trade.id
+                                      ) ? (
+                                        expandedRows.has(trade.id) ? (
+                                          <ChevronDown className="w-4 h-4 text-gray-400" />
+                                        ) : (
+                                          <ChevronRight className="w-4 h-4 text-gray-400" />
+                                        )
+                                      ) : (
+                                        <div className="w-4 h-4" />
+                                      )}
+                                    </button>
+                                  </TableCell>
+                                  <TableCell className="font-mono text-sm text-gray-300">
+                                    <div className="flex flex-col">
+                                      <span className="font-medium">
+                                        {formatInTimeZone(
+                                          new Date(trade.timestamp),
+                                          "Asia/Dubai",
+                                          "MMM dd, yyyy"
+                                        )}
+                                      </span>
+                                      <span className="text-xs text-gray-500">
+                                        {formatInTimeZone(
+                                          new Date(trade.timestamp),
+                                          "Asia/Dubai",
+                                          "HH:mm"
+                                        )}
+                                      </span>
+                                    </div>
+                                  </TableCell>
+                                  <TableCell>
+                                    <Badge
+                                      variant="outline"
+                                      className="border-orange-500/50 text-orange-300 bg-orange-900/50"
+                                    >
+                                      {trade.trader}
+                                    </Badge>
+                                  </TableCell>
+                                  <TableCell className="max-w-[250px]">
+                                    <div
+                                      className="text-gray-200 text-sm leading-relaxed truncate"
+                                      title={trade.content}
+                                    >
+                                      {trade.content}
+                                    </div>
+                                  </TableCell>
+                                  <TableCell>
+                                    <Badge
+                                      variant="outline"
+                                      className="border-green-500/50 text-green-300 bg-green-900/50"
+                                    >
+                                      {trade.coin_symbol}
+                                    </Badge>
+                                  </TableCell>
+                                  <TableCell>
+                                    <Badge
+                                      variant="outline"
+                                      className={
+                                        trade.signal_type === "LONG"
+                                          ? "border-purple-500/50 text-purple-300"
+                                          : trade.signal_type === "SHORT"
+                                          ? "border-cyan-500/50 text-cyan-300"
+                                          : "border-gray-500/50 text-gray-300"
+                                      }
+                                    >
+                                      {trade.signal_type}
+                                    </Badge>
+                                  </TableCell>
+                                  <TableCell>
+                                    <Badge
+                                      variant="outline"
+                                      className={(() => {
+                                        const status = trade.status
+                                          ?.toString()
+                                          .trim()
+                                          .toUpperCase();
+                                        switch (status) {
+                                          case "OPEN":
+                                            return "border-green-500/50 text-green-300";
+                                          case "CLOSED":
+                                            return "border-red-500/50 text-red-300";
+                                          case "PARTIALLY_CLOSED":
+                                            return "border-blue-500/50 text-blue-300";
+
+                                          case "PENDING":
+                                            return "border-yellow-500/50 text-yellow-300";
+                                          case "CANCELLED":
+                                            return "border-red-500/50 text-red-300";
+
+                                          default:
+                                            return "border-gray-500/50 text-gray-400";
+                                        }
+                                      })()}
+                                    >
+                                      {trade.status}
+                                    </Badge>
+                                  </TableCell>
+                                  <TableCell>
+                                    <Badge
+                                      variant="outline"
+                                      className={(() => {
+                                        const status = trade.order_status
+                                          ?.toString()
+                                          .trim()
+                                          .toUpperCase();
+                                        switch (status) {
+                                          case "FILLED":
+                                            return "border-green-500/50 text-green-300";
+                                          case "PENDING":
+                                            return "border-yellow-500/50 text-yellow-300";
+                                          case "UNFILLED":
+                                            return "border-cyan-500/50 text-cyan-300";
+                                          case "CANCELLED":
+                                            return "border-red-500/50 text-red-300";
+                                          case "PARTIALLY_FILLED":
+                                            return "border-blue-500/50 text-blue-300";
+
+                                          default:
+                                            return "border-gray-500/50 text-gray-400";
+                                        }
+                                      })()}
+                                    >
+                                      {trade.order_status}
+                                    </Badge>
+                                  </TableCell>
+                                  <TableCell>
+                                    {trade.position_size === null ? (
+                                      "-"
+                                    ) : (
+                                      <span className="text-green-300">
+                                        {trade.position_size}
+                                      </span>
+                                    )}
+                                  </TableCell>
+
+                                  <TableCell className="text-blue-200 font-medium">
+                                    {trade.binance_entry_price
+                                      ? `$${trade.binance_entry_price}`
+                                      : "-"}
+                                  </TableCell>
+                                  <TableCell className="text-purple-200 font-medium">
+                                    {trade.binance_exit_price
+                                      ? `$${trade.binance_exit_price}`
+                                      : "-"}
+                                  </TableCell>
+                                  <TableCell
+                                    className={`font-medium ${
+                                      trade.pnl_usd
+                                        ? trade.pnl_usd > 0
+                                          ? "text-green-400"
+                                          : "text-red-400"
+                                        : "text-gray-400"
+                                    }`}
+                                  >
+                                    {trade.pnl_usd ? `$${trade.pnl_usd}` : "-"}
+                                  </TableCell>
+                                  <TableCell>
+                                    <button
+                                      onClick={(e) => {
+                                        const rect =
+                                          e.currentTarget.getBoundingClientRect();
+                                        const tableContainer =
+                                          e.currentTarget.closest(
+                                            ".overflow-x-auto"
+                                          );
+                                        const tableRect =
+                                          tableContainer?.getBoundingClientRect();
+                                        const viewportWidth = window.innerWidth;
+                                        const viewportHeight =
+                                          window.innerHeight;
+
+                                        // Position modal to align with table
+                                        let x = rect.left;
+                                        let y = rect.top + rect.height + 10; // 10px below the button
+
+                                        // Check if modal would go off-screen and adjust
+                                        const modalWidth = 400;
+                                        const modalHeight = 500; // Increased height estimate
+
+                                        // Horizontal positioning - prioritize viewport boundaries
+                                        if (x + modalWidth > viewportWidth) {
+                                          x = viewportWidth - modalWidth - 20; // 20px margin from right
+                                        }
+                                        if (x < 20) {
+                                          x = 20; // 20px margin from left
+                                        }
+
+                                        // Vertical positioning - check both table and viewport
+                                        if (y + modalHeight > viewportHeight) {
+                                          // Try to show above the button first
+                                          y = rect.top - modalHeight - 10;
+
+                                          // If still off-screen, position at top of viewport
+                                          if (y < 20) {
+                                            y = 20;
+                                          }
+                                        }
+
+                                        // If table container exists, make final adjustments within table bounds
+                                        if (tableRect) {
+                                          // Ensure modal doesn't go outside table horizontally
+                                          if (
+                                            x + modalWidth >
+                                            tableRect.right
+                                          ) {
+                                            x =
+                                              tableRect.right - modalWidth - 10;
+                                          }
+                                          if (x < tableRect.left) {
+                                            x = tableRect.left + 10;
+                                          }
+                                        }
+
+                                        setModalPosition({ x, y });
+                                        setSelectedTrade(trade);
+                                        setShowBinanceModal(true);
+                                        setHighlightedTradeId(trade.id);
+
+                                        // Ensure the modal is visible by scrolling if needed
+                                        setTimeout(() => {
+                                          const modalElement =
+                                            document.querySelector(
+                                              '[data-modal="binance-response"]'
+                                            );
+                                          if (modalElement) {
+                                            modalElement.scrollIntoView({
+                                              behavior: "smooth",
+                                              block: "nearest",
+                                              inline: "nearest",
+                                            });
+                                          }
+                                        }, 100);
+                                      }}
+                                      className={`p-2 rounded-lg transition-all duration-200 ${
+                                        selectedTrade?.id === trade.id &&
+                                        showBinanceModal
+                                          ? "bg-blue-500/20 text-blue-200 border border-blue-500/50 shadow-lg shadow-blue-500/20"
+                                          : highlightedTradeId === trade.id
+                                          ? "bg-blue-500/30 text-blue-300 border border-blue-500/30"
+                                          : "hover:bg-gray-800/50 text-gray-400 hover:text-blue-300 border border-transparent hover:border-blue-500/30"
+                                      }`}
+                                      title="View Binance Response"
+                                    >
+                                      <ExternalLink className="w-4 h-4" />
+                                    </button>
+                                  </TableCell>
+                                </TableRow>
+
+                                {/* Expanded Alerts Row */}
+                                {expandedRows.has(trade.id) && (
+                                  <TableRow
+                                    key={`expanded-${trade.id}`}
+                                    className="border-gray-700 bg-gray-800/20"
+                                  >
+                                    <TableCell colSpan={13} className="p-0">
+                                      <div className="p-3 bg-gradient-to-r from-blue-900/20 to-purple-900/20 border-l-4 border-blue-500/50">
+                                        <div className="mb-2">
+                                          <h4 className="text-blue-300 font-semibold text-sm">
+                                            Related Alerts (
+                                            {
+                                              alertsData.filter(
+                                                (alert: Alert) =>
+                                                  alert.trade ===
+                                                    trade.discord_id ||
+                                                  alert.parsed_alert
+                                                    ?.original_trade_id ===
+                                                    trade.id
+                                              ).length
+                                            }
+                                            )
+                                          </h4>
+                                        </div>
+                                        <div className="space-y-2">
+                                          {alertsData
+                                            .filter(
+                                              (alert: Alert) =>
+                                                alert.trade ===
+                                                  trade.discord_id ||
+                                                alert.parsed_alert
+                                                  ?.original_trade_id ===
+                                                  trade.id
+                                            )
+                                            .sort(
+                                              (a: Alert, b: Alert) =>
+                                                new Date(
+                                                  a.timestamp
+                                                ).getTime() -
+                                                new Date(b.timestamp).getTime()
+                                            )
+                                            .map(
+                                              (
+                                                alert: Alert,
+                                                alertIndex: number
+                                              ) => (
+                                                <div
+                                                  key={`alert-${alert.discord_id}-${alertIndex}`}
+                                                  className="bg-gray-800/50 rounded p-2 border border-gray-700/50"
+                                                >
+                                                  <div className="grid grid-cols-6 gap-4 items-center text-sm">
+                                                    <div className="text-gray-400 font-mono min-w-[100px]">
+                                                      <div className="flex flex-col">
+                                                        <span className="font-medium">
+                                                          {formatInTimeZone(
+                                                            new Date(
+                                                              alert.timestamp
+                                                            ),
+                                                            "Asia/Dubai",
+                                                            "MMM dd, yyyy"
+                                                          )}
+                                                        </span>
+                                                        <span className="text-xs text-gray-500">
+                                                          {formatInTimeZone(
+                                                            new Date(
+                                                              alert.timestamp
+                                                            ),
+                                                            "Asia/Dubai",
+                                                            "HH:mm"
+                                                          )}
+                                                        </span>
+                                                      </div>
+                                                    </div>
+                                                    <div className="text-gray-200 col-span-2">
+                                                      {alert.content}
+                                                    </div>
+                                                    <div className="flex items-center gap-2 min-w-[100px]">
+                                                      <Badge
+                                                        variant="outline"
+                                                        className="border-green-500/50 text-green-300 bg-green-900/20 text-xs"
+                                                      >
+                                                        Status:{" "}
+                                                        {alert.status || " _ "}
+                                                      </Badge>
+                                                    </div>
+                                                    <div className="flex items-center gap-2 min-w-[120px]">
+                                                      <Badge
+                                                        variant="outline"
+                                                        className="border-blue-500/50 text-blue-300 bg-blue-900/20 text-xs"
+                                                      >
+                                                        {getStateFromSignal(
+                                                          trade as Trade,
+                                                          alert
+                                                        )}
+                                                      </Badge>
+                                                    </div>
+                                                    <div className="flex flex-col gap-1 min-w-[150px]">
+                                                      <div className="text-blue-300 text-xs font-medium">
+                                                        {alert.parsed_alert
+                                                          ?.action_determined
+                                                          ?.action_description ||
+                                                          "N/A"}
+                                                      </div>
+                                                      <div className="text-gray-400 text-xs">
+                                                        {alert.parsed_alert
+                                                          ?.action_determined
+                                                          ?.reason || "_"}
+                                                      </div>
+                                                    </div>
+                                                  </div>
+                                                </div>
+                                              )
+                                            )}
+                                          {alertsData.filter(
+                                            (alert: Alert) =>
+                                              alert.trade ===
+                                                trade.discord_id ||
+                                              alert.parsed_alert
+                                                ?.original_trade_id === trade.id
+                                          ).length === 0 && (
+                                            <div className="text-center py-2 text-gray-500 text-sm">
+                                              No alerts found for this trade
+                                            </div>
+                                          )}
+                                        </div>
+                                      </div>
+                                    </TableCell>
+                                  </TableRow>
+                                )}
+                              </React.Fragment>
+                            )
+                          )}
+
                           {filteredTrades.length === 0 && (
                             <TableRow key="empty-trades">
                               <TableCell
