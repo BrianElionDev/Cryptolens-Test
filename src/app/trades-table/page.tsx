@@ -102,7 +102,7 @@ export default function TradesTablePage() {
   const [selectedTrader, setSelectedTrader] = useState("@Johnny");
   const [selectedSignalType, setSelectedSignalType] = useState("all");
   const [selectedStatus, setSelectedStatus] = useState("all");
-  const [selectedActiveStatus, setSelectedActiveStatus] = useState("all");
+  const [selectedCoinTrades, setSelectedCoinTrades] = useState("all");
   const [tradesSortBy, setTradesSortBy] = useState<"newest" | "oldest">(
     "newest"
   );
@@ -193,7 +193,7 @@ export default function TradesTablePage() {
     const uniqueCoins = new Set(
       allEntries
         .filter((entry) => entry.coin)
-        .map((entry) => entry.coin.toLowerCase())
+        .map((entry) => entry.coin.toUpperCase())
     );
     return Array.from(uniqueCoins).sort() as string[];
   }, [allEntries]);
@@ -348,6 +348,14 @@ export default function TradesTablePage() {
         selectedSignalType === "all" ||
         trade.parsed_signal?.position_type === selectedSignalType;
 
+      const matchesStatus =
+        selectedStatus === "all" || trade.status === selectedStatus;
+
+      const matchesCoin =
+        selectedCoinTrades === "all" ||
+        trade.parsed_signal?.coin_symbol?.toUpperCase() ===
+          selectedCoinTrades.toUpperCase();
+
       // Date range filtering
       const tradeDate = new Date(trade.timestamp);
       const tradesDateRangeFilter = getDateRange(tradesDateRange);
@@ -357,7 +365,12 @@ export default function TradesTablePage() {
           tradeDate <= tradesDateRangeFilter.to);
 
       return (
-        matchesSearch && matchesTrader && matchesSignalType && matchesDateRange
+        matchesSearch &&
+        matchesTrader &&
+        matchesSignalType &&
+        matchesStatus &&
+        matchesCoin &&
+        matchesDateRange
       );
     });
 
@@ -374,6 +387,8 @@ export default function TradesTablePage() {
     tradesSearchTerm,
     selectedTrader,
     selectedSignalType,
+    selectedStatus,
+    selectedCoinTrades,
     tradesSortBy,
     tradesResultLimit,
     tradesDateRange,
@@ -868,17 +883,23 @@ export default function TradesTablePage() {
                     </Select>
 
                     <Select
-                      value={selectedActiveStatus}
-                      onValueChange={setSelectedActiveStatus}
+                      value={selectedCoinTrades}
+                      onValueChange={setSelectedCoinTrades}
                     >
                       <SelectTrigger className="w-[120px] bg-gray-900/50 border-gray-700 text-white">
                         <Filter className="w-4 h-4 mr-2" />
-                        <SelectValue placeholder="Active" />
+                        <SelectValue placeholder="Coin" />
                       </SelectTrigger>
                       <SelectContent className="bg-gray-900 border-gray-700">
-                        <SelectItem value="all">All</SelectItem>
-                        <SelectItem value="active">Active</SelectItem>
-                        <SelectItem value="inactive">Inactive</SelectItem>
+                        <SelectItem value="all">All Coins</SelectItem>
+                        {coins.map((coin, index: number) => (
+                          <SelectItem
+                            key={`cointrades-${coin}-${index}`}
+                            value={coin}
+                          >
+                            {coin}
+                          </SelectItem>
+                        ))}
                       </SelectContent>
                     </Select>
 
@@ -1419,7 +1440,6 @@ export default function TradesTablePage() {
                                   selectedTrader !== "all" ||
                                   selectedSignalType !== "all" ||
                                   selectedStatus !== "all" ||
-                                  selectedActiveStatus !== "all" ||
                                   tradesDateRange !== "all"
                                     ? "No trades match your filters"
                                     : "No trades available"}
