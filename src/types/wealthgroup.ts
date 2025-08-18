@@ -4,7 +4,9 @@ export interface Alert {
   trade: string;
   timestamp: string;
   content: string;
+  status: string;
   parsed_alert?: ParsedAlert;
+  binance_response?: string;
 }
 
 // New parsed alert format
@@ -13,17 +15,19 @@ export interface ActionDetermined {
   action_description: string;
   binance_action: string;
   position_status: string;
+  stop_loss: number;
+  take_profit: number | null;
   reason: string;
 }
 
 export interface ParsedAlert {
-  alert_id: number;
   original_content: string;
   processed_at: string;
   action_determined: ActionDetermined;
-  original_trade_id: number;
   coin_symbol: string;
   trader: string;
+  alert_id: number;
+  original_trade_id: number;
 }
 
 // New JSON format signal
@@ -45,4 +49,16 @@ export interface Trade {
   structured: string;
   timestamp: string;
   parsed_signal?: ParsedSignal;
+  status: string;
+  order_status: string;
+  signal_type: string;
+  coin_symbol: string;
+  position_size: number;
+  exchange_order_id: string | null;
+  exit_price: number | null;
+  entry_price: number | null;
+  binance_entry_price: number | null;
+  binance_exit_price: number | null;
+  binance_response: string | null;
+  pnl_usd: number | null;
 }
