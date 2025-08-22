@@ -1,8 +1,11 @@
 import { NextResponse } from "next/server";
-import {
-  YoutubeTranscript,
-  YoutubeTranscriptError,
-} from "@/app/transcript/youtube-transcript.esm.js";
+import { YoutubeTranscript } from "@/app/transcript/youtube-transcript.esm.js";
+
+interface TranscriptSegment {
+  text: string;
+  duration: number;
+  offset: number;
+}
 
 export async function POST(request: Request) {
   try {
@@ -21,7 +24,7 @@ export async function POST(request: Request) {
         success: true,
         transcript: { content: transcript },
       });
-    } catch (error: any) {
+    } catch (error: unknown) {
       // Fallback to external API if local fetch fails
       console.warn(
         "Local YoutubeTranscript failed, falling back to external API:",
@@ -59,13 +62,16 @@ export async function POST(request: Request) {
       { status: 500 }
     );
   }
-  async function formatTranscript(rawTranscript: any) {
+
+  async function formatTranscript(
+    rawTranscript: TranscriptSegment[] | string
+  ): Promise<string | null> {
     try {
       const segments =
         typeof rawTranscript === "string"
-          ? JSON.parse(rawTranscript)
+          ? (JSON.parse(rawTranscript) as TranscriptSegment[])
           : rawTranscript;
-      const formattedLines = segments.map((segment: any) => {
+      const formattedLines = segments.map((segment: TranscriptSegment) => {
         const text = segment.text
           .replace(/&amp;#39;/g, "'")
           .replace(/&amp;/g, "&")
@@ -75,13 +81,14 @@ export async function POST(request: Request) {
         return `${timestamp} ${text}`;
       });
 
-      return formattedLines.filter((segment: any) => segment).join("\n");
+      return formattedLines.filter((segment: string) => segment).join("\n");
     } catch (error) {
       console.error("Error formatting transcript:", error);
       return null;
     }
   }
-  function formatTimestamp(ms: any) {
+
+  function formatTimestamp(ms: number): string {
     const hours = Math.floor(ms / 3600)
       .toString()
       .padStart(2, "0");
