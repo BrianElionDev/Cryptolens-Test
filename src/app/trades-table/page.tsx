@@ -33,10 +33,19 @@ import {
   ExternalLink,
   ChevronDown,
   ChevronRight,
+  X,
 } from "lucide-react";
 import { Alert, Trade } from "@/types/wealthgroup";
 import { formatInTimeZone } from "date-fns-tz";
 import { BinanceResponseModal } from "@/components/modals/BinanceResponseModal";
+
+interface Transaction {
+  time: string;
+  type: string;
+  amount: number;
+  asset: string;
+  symbol: string;
+}
 
 interface TradesRow {
   id: number;
@@ -68,6 +77,36 @@ async function fetchWealthgroupData() {
   if (!response.ok) {
     const errorData = await response.json();
     throw new Error(errorData.error || "Failed to fetch wealthgroup data");
+  }
+
+  return await response.json();
+}
+
+async function fetchTransactionHistory(params: {
+  type?: string;
+  asset?: string;
+  symbol?: string;
+  search?: string;
+  dateFrom?: string;
+  dateTo?: string;
+  limit?: number;
+  offset?: number;
+  sortBy?: string;
+  sortOrder?: string;
+}) {
+  const searchParams = new URLSearchParams();
+
+  Object.entries(params).forEach(([key, value]) => {
+    if (value !== undefined && value !== null) {
+      searchParams.append(key, value.toString());
+    }
+  });
+
+  const response = await fetch(`/api/transactions?${searchParams.toString()}`);
+
+  if (!response.ok) {
+    const errorData = await response.json();
+    throw new Error(errorData.error || "Failed to fetch transaction history");
   }
 
   return await response.json();
@@ -109,6 +148,27 @@ export default function TradesTablePage() {
   const [tradesResultLimit, setTradesResultLimit] = useState<number>(9999);
   const [tradesDateRange, setTradesDateRange] = useState("all");
 
+  // Transaction history tab filters
+  const [transactionsSearchTerm, setTransactionsSearchTerm] = useState("");
+  const [submittedSearchTerm, setSubmittedSearchTerm] = useState("");
+  const [selectedTransactionType, setSelectedTransactionType] = useState("all");
+  const [selectedTransactionAsset, setSelectedTransactionAsset] =
+    useState("all");
+  const [selectedTransactionSymbol, setSelectedTransactionSymbol] =
+    useState("all");
+  const [transactionsSortBy, setTransactionsSortBy] = useState<
+    "newest" | "oldest"
+  >("newest");
+  const [transactionsResultLimit, setTransactionsResultLimit] =
+    useState<number>(9999);
+  const [transactionsDateRange, setTransactionsDateRange] = useState("all");
+
+  // Handle clear search
+  const handleClearSearch = () => {
+    setTransactionsSearchTerm("");
+    setSubmittedSearchTerm("");
+  };
+
   // Modal state
   const [selectedTrade, setSelectedTrade] = useState<TradesRow | null>(null);
   const [showBinanceModal, setShowBinanceModal] = useState(false);
@@ -120,6 +180,46 @@ export default function TradesTablePage() {
   const { data, isLoading, error } = useQuery({
     queryKey: ["wealthgroup_data"],
     queryFn: fetchWealthgroupData,
+    refetchInterval: 60000, // 1 minute
+  });
+
+  // Transaction history query
+  const {
+    data: transactionData,
+    isLoading: transactionLoading,
+    error: transactionError,
+  } = useQuery({
+    queryKey: [
+      "transaction_history",
+      submittedSearchTerm,
+      transactionsDateRange,
+      selectedTransactionType,
+      selectedTransactionAsset,
+      selectedTransactionSymbol,
+      transactionsSortBy,
+      transactionsResultLimit,
+    ],
+    queryFn: () =>
+      fetchTransactionHistory({
+        search: submittedSearchTerm || undefined,
+        dateFrom: getDateRange(transactionsDateRange)?.from?.toISOString(),
+        dateTo: getDateRange(transactionsDateRange)?.to?.toISOString(),
+        type:
+          selectedTransactionType !== "all"
+            ? selectedTransactionType
+            : undefined,
+        asset:
+          selectedTransactionAsset !== "all"
+            ? selectedTransactionAsset
+            : undefined,
+        symbol:
+          selectedTransactionSymbol !== "all"
+            ? selectedTransactionSymbol
+            : undefined,
+        sortBy: "time",
+        sortOrder: transactionsSortBy === "newest" ? "DESC" : "ASC",
+        limit: transactionsResultLimit,
+      }),
     refetchInterval: 60000, // 1 minute
   });
 
@@ -226,6 +326,34 @@ export default function TradesTablePage() {
     );
     return Array.from(uniqueStatuses).sort() as string[];
   }, [tradesData]);
+
+  // Get unique values for transaction filters
+  const transactionTypes = useMemo((): string[] => {
+    const uniqueTypes = new Set(
+      transactionData?.transactions
+        ?.filter((transaction: Transaction) => transaction.type)
+        .map((transaction: Transaction) => transaction.type) || []
+    );
+    return Array.from(uniqueTypes).sort() as string[];
+  }, [transactionData]);
+
+  const transactionAssets = useMemo((): string[] => {
+    const uniqueAssets = new Set(
+      transactionData?.transactions
+        ?.filter((transaction: Transaction) => transaction.asset)
+        .map((transaction: Transaction) => transaction.asset) || []
+    );
+    return Array.from(uniqueAssets).sort() as string[];
+  }, [transactionData]);
+
+  const transactionSymbols = useMemo((): string[] => {
+    const uniqueSymbols = new Set(
+      transactionData?.transactions
+        ?.filter((transaction: Transaction) => transaction.symbol)
+        .map((transaction: Transaction) => transaction.symbol) || []
+    );
+    return Array.from(uniqueSymbols).sort() as string[];
+  }, [transactionData]);
 
   // Date range helper function
   const getDateRange = (range: string) => {
@@ -469,7 +597,7 @@ export default function TradesTablePage() {
         </div>
 
         <Tabs defaultValue="trades" className="w-full">
-          <TabsList className="grid w-full grid-cols-2 bg-gray-900/50 border-gray-700">
+          <TabsList className="grid w-full grid-cols-3 bg-gray-900/50 border-gray-700">
             <TabsTrigger
               value="trades"
               className="data-[state=active]:bg-gray-800"
@@ -481,6 +609,12 @@ export default function TradesTablePage() {
               className="data-[state=active]:bg-gray-800"
             >
               Trading Log
+            </TabsTrigger>
+            <TabsTrigger
+              value="transactions"
+              className="data-[state=active]:bg-gray-800"
+            >
+              Transactions
             </TabsTrigger>
           </TabsList>
 
@@ -1201,7 +1335,9 @@ export default function TradesTablePage() {
                                         : "text-gray-400"
                                     }`}
                                   >
-                                    {trade.pnl_usd ? `$${trade.pnl_usd}` : "-"}
+                                    {trade.pnl_usd
+                                      ? `$${trade.pnl_usd.toFixed(2)}`
+                                      : "-"}
                                   </TableCell>
                                   <TableCell>
                                     <button
@@ -1443,6 +1579,314 @@ export default function TradesTablePage() {
                                   tradesDateRange !== "all"
                                     ? "No trades match your filters"
                                     : "No trades available"}
+                                </p>
+                              </TableCell>
+                            </TableRow>
+                          )}
+                        </TableBody>
+                      </Table>
+                    </div>
+                  </CardContent>
+                </Card>
+              </>
+            )}
+          </TabsContent>
+
+          <TabsContent value="transactions" className="mt-6">
+            {transactionLoading ? (
+              <div className="flex items-center justify-center py-8">
+                <LoadingSpinner />
+              </div>
+            ) : transactionError ? (
+              <Card className="bg-red-950/20 border-red-500/30">
+                <CardContent className="p-6 text-center">
+                  <AlertTriangle className="w-12 h-12 text-red-400 mx-auto mb-4" />
+                  <h2 className="text-xl font-semibold text-red-200 mb-2">
+                    Error Loading Transactions
+                  </h2>
+                  <p className="text-red-300">
+                    {transactionError
+                      ? String(transactionError)
+                      : "Unknown error occurred"}
+                  </p>
+                </CardContent>
+              </Card>
+            ) : (
+              <>
+                {/* Transaction Search and Filter Controls */}
+                <div className="mb-6">
+                  <div className="flex flex-wrap gap-4 items-center">
+                    <div className="flex-1 min-w-[250px] relative">
+                      <Input
+                        placeholder="Search transactions..."
+                        value={transactionsSearchTerm}
+                        onChange={(e) =>
+                          setTransactionsSearchTerm(e.target.value)
+                        }
+                        onKeyDown={(e) => {
+                          if (e.key === "Enter") {
+                            e.preventDefault();
+                            setSubmittedSearchTerm(transactionsSearchTerm);
+                          }
+                        }}
+                        className="pl-3 pr-10 bg-gray-900/50 border-gray-700 text-white"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => {
+                          if (transactionsSearchTerm || submittedSearchTerm) {
+                            handleClearSearch();
+                          } else {
+                            setSubmittedSearchTerm(transactionsSearchTerm);
+                          }
+                        }}
+                        className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-white transition-colors"
+                      >
+                        {transactionsSearchTerm || submittedSearchTerm ? (
+                          <X className="w-4 h-4" />
+                        ) : (
+                          <Search className="w-4 h-4" />
+                        )}
+                      </button>
+                    </div>
+
+                    <Select
+                      value={selectedTransactionType}
+                      onValueChange={setSelectedTransactionType}
+                    >
+                      <SelectTrigger className="w-[140px] bg-gray-900/50 border-gray-700 text-white">
+                        <Filter className="w-4 h-4 mr-2" />
+                        <SelectValue placeholder="Type" />
+                      </SelectTrigger>
+                      <SelectContent className="bg-gray-900 border-gray-700">
+                        <SelectItem value="all">All Types</SelectItem>
+                        {transactionTypes.map((type, index: number) => (
+                          <SelectItem
+                            key={`transactiontype-${type}-${index}`}
+                            value={type}
+                          >
+                            {type}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+
+                    <Select
+                      value={selectedTransactionAsset}
+                      onValueChange={setSelectedTransactionAsset}
+                    >
+                      <SelectTrigger className="w-[140px] bg-gray-900/50 border-gray-700 text-white">
+                        <Filter className="w-4 h-4 mr-2" />
+                        <SelectValue placeholder="Asset" />
+                      </SelectTrigger>
+                      <SelectContent className="bg-gray-900 border-gray-700">
+                        <SelectItem value="all">All Assets</SelectItem>
+                        {transactionAssets.map((asset, index: number) => (
+                          <SelectItem
+                            key={`transactionasset-${asset}-${index}`}
+                            value={asset}
+                          >
+                            {asset}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+
+                    <Select
+                      value={selectedTransactionSymbol}
+                      onValueChange={setSelectedTransactionSymbol}
+                    >
+                      <SelectTrigger className="w-[140px] bg-gray-900/50 border-gray-700 text-white">
+                        <Filter className="w-4 h-4 mr-2" />
+                        <SelectValue placeholder="Symbol" />
+                      </SelectTrigger>
+                      <SelectContent className="bg-gray-900 border-gray-700">
+                        <SelectItem value="all">All Symbols</SelectItem>
+                        {transactionSymbols.map((symbol, index: number) => (
+                          <SelectItem
+                            key={`transactionsymbol-${symbol}-${index}`}
+                            value={symbol}
+                          >
+                            {symbol}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+
+                    <Select
+                      value={transactionsDateRange}
+                      onValueChange={setTransactionsDateRange}
+                    >
+                      <SelectTrigger className="w-[150px] bg-gray-900/50 border-gray-700 text-white">
+                        <Filter className="w-4 h-4 mr-2" />
+                        <SelectValue placeholder="Date Range" />
+                      </SelectTrigger>
+                      <SelectContent className="bg-gray-900 border-gray-700">
+                        <SelectItem value="all">All Time</SelectItem>
+                        <SelectItem value="today">Today</SelectItem>
+                        <SelectItem value="yesterday">Yesterday</SelectItem>
+                        <SelectItem value="7days">Last 7 Days</SelectItem>
+                        <SelectItem value="30days">Last 30 Days</SelectItem>
+                      </SelectContent>
+                    </Select>
+
+                    <Select
+                      value={transactionsSortBy}
+                      onValueChange={(value) =>
+                        setTransactionsSortBy(value as "newest" | "oldest")
+                      }
+                    >
+                      <SelectTrigger className="w-[140px] bg-gray-900/50 border-gray-700 text-white">
+                        <ArrowUpDown className="w-4 h-4 mr-2" />
+                        <SelectValue placeholder="Sort" />
+                      </SelectTrigger>
+                      <SelectContent className="bg-gray-900 border-gray-700">
+                        <SelectItem value="newest">Newest</SelectItem>
+                        <SelectItem value="oldest">Oldest</SelectItem>
+                      </SelectContent>
+                    </Select>
+
+                    <Select
+                      value={transactionsResultLimit.toString()}
+                      onValueChange={(value) =>
+                        setTransactionsResultLimit(parseInt(value))
+                      }
+                    >
+                      <SelectTrigger className="w-[100px] bg-gray-900/50 border-gray-700 text-white">
+                        <Filter className="w-4 h-4 mr-2" />
+                        <SelectValue placeholder="Show" />
+                      </SelectTrigger>
+                      <SelectContent className="bg-gray-900 border-gray-700">
+                        <SelectItem value="25">25</SelectItem>
+                        <SelectItem value="50">50</SelectItem>
+                        <SelectItem value="100">100</SelectItem>
+                        <SelectItem value="200">200</SelectItem>
+                        <SelectItem value="500">500</SelectItem>
+                        <SelectItem value="9999">All</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
+
+                <Card className="bg-gray-900/50 border-gray-700 shadow-2xl">
+                  <CardHeader className="border-b border-gray-700">
+                    <CardTitle className="text-white flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <Activity className="w-5 h-5" />
+                        Transaction History (
+                        {transactionData?.transactions?.length || 0} of{" "}
+                        {transactionData?.total || 0} entries)
+                      </div>
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent className="p-0">
+                    <div className="overflow-x-auto">
+                      <Table>
+                        <TableHeader>
+                          <TableRow className="border-gray-700 hover:bg-gray-800/50 bg-gray-800/30">
+                            <TableHead className="text-gray-300 font-semibold min-w-[150px]">
+                              Date/Time (UTC)
+                            </TableHead>
+                            <TableHead className="text-gray-300 font-semibold min-w-[100px]">
+                              Type
+                            </TableHead>
+                            <TableHead className="text-gray-300 font-semibold min-w-[120px]">
+                              Amount
+                            </TableHead>
+                            <TableHead className="text-gray-300 font-semibold min-w-[100px]">
+                              Asset
+                            </TableHead>
+                            <TableHead className="text-gray-300 font-semibold min-w-[100px]">
+                              Symbol
+                            </TableHead>
+                          </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                          {transactionData?.transactions?.map(
+                            (transaction: Transaction, index: number) => (
+                              <TableRow
+                                key={`transaction-${index}`}
+                                className="border-gray-700 hover:bg-gray-800/30 transition-colors"
+                              >
+                                <TableCell className="font-mono text-sm text-gray-300">
+                                  <div className="flex flex-col">
+                                    <span className="font-medium">
+                                      {formatInTimeZone(
+                                        new Date(transaction.time),
+                                        "UTC",
+                                        "MMM dd, yyyy"
+                                      )}
+                                    </span>
+                                    <span className="text-xs text-gray-500">
+                                      {formatInTimeZone(
+                                        new Date(transaction.time),
+                                        "UTC",
+                                        "HH:mm:ss"
+                                      )}
+                                    </span>
+                                  </div>
+                                </TableCell>
+                                <TableCell>
+                                  <Badge
+                                    variant="outline"
+                                    className={
+                                      transaction.type === "BUY"
+                                        ? "border-green-500/50 text-green-300 bg-green-900/20"
+                                        : transaction.type === "SELL"
+                                        ? "border-red-500/50 text-red-300 bg-red-900/20"
+                                        : "border-blue-500/50 text-blue-300 bg-blue-900/20"
+                                    }
+                                  >
+                                    {transaction.type}
+                                  </Badge>
+                                </TableCell>
+                                <TableCell>
+                                  <span
+                                    className={`font-medium ${
+                                      transaction.amount > 0
+                                        ? "text-green-400"
+                                        : "text-red-400"
+                                    }`}
+                                  >
+                                    {transaction.amount.toFixed(6)}
+                                  </span>
+                                </TableCell>
+                                <TableCell>
+                                  <Badge
+                                    variant="outline"
+                                    className="border-purple-500/50 text-purple-300 bg-purple-900/20"
+                                  >
+                                    {transaction.asset}
+                                  </Badge>
+                                </TableCell>
+                                <TableCell>
+                                  <Badge
+                                    variant="outline"
+                                    className="border-cyan-500/50 text-cyan-300 bg-cyan-900/20"
+                                  >
+                                    {transaction.symbol}
+                                  </Badge>
+                                </TableCell>
+                              </TableRow>
+                            )
+                          )}
+
+                          {(!transactionData?.transactions ||
+                            transactionData.transactions.length === 0) && (
+                            <TableRow key="empty-transactions">
+                              <TableCell
+                                colSpan={5}
+                                className="text-center py-8"
+                              >
+                                <TrendingUp className="w-12 h-12 text-gray-500 mx-auto mb-4" />
+                                <p className="text-gray-400">
+                                  {transactionsSearchTerm ||
+                                  selectedTransactionType !== "all" ||
+                                  selectedTransactionAsset !== "all" ||
+                                  selectedTransactionSymbol !== "all" ||
+                                  transactionsDateRange !== "all"
+                                    ? "No transactions match your filters"
+                                    : "No transactions available"}
                                 </p>
                               </TableCell>
                             </TableRow>

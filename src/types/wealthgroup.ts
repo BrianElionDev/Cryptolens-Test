@@ -20,6 +20,14 @@ export interface ActionDetermined {
   reason: string;
 }
 
+export interface Transaction {
+  time: string;
+  type: string;
+  amount: number;
+  asset: string;
+  symbol: string;
+}
+
 export interface ParsedAlert {
   original_content: string;
   processed_at: string;
