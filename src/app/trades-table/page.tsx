@@ -36,6 +36,7 @@ import {
   X,
 } from "lucide-react";
 import { Alert, Trade } from "@/types/wealthgroup";
+import { ActiveFutures } from "@/types/active_futures";
 import { formatInTimeZone } from "date-fns-tz";
 import { BinanceResponseModal } from "@/components/modals/BinanceResponseModal";
 
@@ -126,6 +127,17 @@ interface TradeEntry {
   originalTradeId?: string;
 }
 
+async function fetchActiveFutures() {
+  const response = await fetch("/api/active_futures");
+
+  if (!response.ok) {
+    const errorData = await response.json();
+    throw new Error(errorData.error || "Failed to fetch active futures data");
+  }
+
+  return await response.json();
+}
+
 export default function TradesTablePage() {
   // Trading Log filters
   const [searchTerm, setSearchTerm] = useState("");
@@ -147,6 +159,19 @@ export default function TradesTablePage() {
   );
   const [tradesResultLimit, setTradesResultLimit] = useState<number>(9999);
   const [tradesDateRange, setTradesDateRange] = useState("all");
+
+  // Active Futures tab filters
+  const [activeFuturesSearchTerm, setActiveFuturesSearchTerm] = useState("");
+  const [selectedActiveFuturesTrader, setSelectedActiveFuturesTrader] =
+    useState("@Johnny");
+  const [selectedActiveFuturesStatus, setSelectedActiveFuturesStatus] =
+    useState("all");
+  const [activeFuturesSortBy, setActiveFuturesSortBy] = useState<
+    "newest" | "oldest"
+  >("newest");
+  const [activeFuturesResultLimit, setActiveFuturesResultLimit] =
+    useState<number>(9999);
+  const [activeFuturesDateRange, setActiveFuturesDateRange] = useState("all");
 
   // Transaction history tab filters
   const [transactionsSearchTerm, setTransactionsSearchTerm] = useState("");
@@ -220,6 +245,17 @@ export default function TradesTablePage() {
         sortOrder: transactionsSortBy === "newest" ? "DESC" : "ASC",
         limit: transactionsResultLimit,
       }),
+    refetchInterval: 60000, // 1 minute
+  });
+
+  // Active futures query
+  const {
+    data: activeFuturesData,
+    isLoading: activeFuturesLoading,
+    error: activeFuturesError,
+  } = useQuery({
+    queryKey: ["active_futures"],
+    queryFn: fetchActiveFutures,
     refetchInterval: 60000, // 1 minute
   });
 
@@ -354,6 +390,25 @@ export default function TradesTablePage() {
     );
     return Array.from(uniqueSymbols).sort() as string[];
   }, [transactionData]);
+
+  // Get unique values for active futures filters
+  const activeFuturesTraders = useMemo((): string[] => {
+    const uniqueTraders = new Set(
+      activeFuturesData
+        ?.filter((future: ActiveFutures) => future.trader)
+        .map((future: ActiveFutures) => future.trader) || []
+    );
+    return Array.from(uniqueTraders).sort() as string[];
+  }, [activeFuturesData]);
+
+  const activeFuturesStatuses = useMemo((): string[] => {
+    const uniqueStatuses = new Set(
+      activeFuturesData
+        ?.filter((future: ActiveFutures) => future.status)
+        .map((future: ActiveFutures) => future.status) || []
+    );
+    return Array.from(uniqueStatuses).sort() as string[];
+  }, [activeFuturesData]);
 
   // Date range helper function
   const getDateRange = (range: string) => {
@@ -522,6 +577,64 @@ export default function TradesTablePage() {
     tradesDateRange,
   ]);
 
+  // Filter and sort active futures data
+  const filteredActiveFutures = useMemo(() => {
+    const filtered = (activeFuturesData || []).filter(
+      (future: ActiveFutures) => {
+        const matchesSearch =
+          activeFuturesSearchTerm === "" ||
+          future.title
+            .toLowerCase()
+            .includes(activeFuturesSearchTerm.toLowerCase()) ||
+          future.content
+            .toLowerCase()
+            .includes(activeFuturesSearchTerm.toLowerCase()) ||
+          future.trader
+            .toLowerCase()
+            .includes(activeFuturesSearchTerm.toLowerCase());
+
+        const matchesTrader =
+          selectedActiveFuturesTrader === "all" ||
+          future.trader === selectedActiveFuturesTrader;
+
+        const matchesStatus =
+          selectedActiveFuturesStatus === "all" ||
+          future.status === selectedActiveFuturesStatus;
+
+        // Date range filtering
+        const futureDate = new Date(future.created_at);
+        const activeFuturesDateRangeFilter = getDateRange(
+          activeFuturesDateRange
+        );
+        const matchesDateRange =
+          !activeFuturesDateRangeFilter ||
+          (futureDate >= activeFuturesDateRangeFilter.from &&
+            futureDate <= activeFuturesDateRangeFilter.to);
+
+        return (
+          matchesSearch && matchesTrader && matchesStatus && matchesDateRange
+        );
+      }
+    );
+
+    const sorted = filtered.sort((a: ActiveFutures, b: ActiveFutures) => {
+      const dateA = new Date(a.created_at).getTime();
+      const dateB = new Date(b.created_at).getTime();
+      return activeFuturesSortBy === "newest" ? dateB - dateA : dateA - dateB;
+    });
+
+    // Apply result limit
+    return sorted.slice(0, activeFuturesResultLimit);
+  }, [
+    activeFuturesData,
+    activeFuturesSearchTerm,
+    selectedActiveFuturesTrader,
+    selectedActiveFuturesStatus,
+    activeFuturesSortBy,
+    activeFuturesResultLimit,
+    activeFuturesDateRange,
+  ]);
+
   const getStateFromSignal = (trade: Trade, alert?: Alert) => {
     if (alert && alert.content) {
       const content = alert.content.toLowerCase();
@@ -597,7 +710,7 @@ export default function TradesTablePage() {
         </div>
 
         <Tabs defaultValue="trades" className="w-full">
-          <TabsList className="grid w-full grid-cols-3 bg-gray-900/50 border-gray-700">
+          <TabsList className="grid w-full grid-cols-4 bg-gray-900/50 border-gray-700">
             <TabsTrigger
               value="trades"
               className="data-[state=active]:bg-gray-800"
@@ -605,11 +718,18 @@ export default function TradesTablePage() {
               Trades
             </TabsTrigger>
             <TabsTrigger
+              value="active-futures"
+              className="data-[state=active]:bg-gray-800"
+            >
+              Active Futures
+            </TabsTrigger>                  
+            <TabsTrigger
               value="trading-log"
               className="data-[state=active]:bg-gray-800"
             >
               Trading Log
             </TabsTrigger>
+          
             <TabsTrigger
               value="transactions"
               className="data-[state=active]:bg-gray-800"
@@ -618,6 +738,7 @@ export default function TradesTablePage() {
             </TabsTrigger>
           </TabsList>
 
+       
           <TabsContent value="trading-log" className="mt-6">
             <div className="mt-4 flex flex-wrap gap-4 text-sm text-gray-500 mb-6">
               <div className="flex items-center gap-2">
@@ -920,7 +1041,7 @@ export default function TradesTablePage() {
               </CardContent>
             </Card>
           </TabsContent>
-
+ 
           <TabsContent value="trades" className="mt-6">
             {isLoading ? (
               <div className="flex items-center justify-center py-8">
@@ -1579,6 +1700,299 @@ export default function TradesTablePage() {
                                   tradesDateRange !== "all"
                                     ? "No trades match your filters"
                                     : "No trades available"}
+                                </p>
+                              </TableCell>
+                            </TableRow>
+                          )}
+                        </TableBody>
+                      </Table>
+                    </div>
+                  </CardContent>
+                </Card>
+              </>
+            )}
+          </TabsContent>
+
+          <TabsContent value="active-futures" className="mt-6">
+            {activeFuturesLoading ? (
+              <div className="flex items-center justify-center py-8">
+                <LoadingSpinner />
+              </div>
+            ) : activeFuturesError ? (
+              <Card className="bg-red-950/20 border-red-500/30">
+                <CardContent className="p-6 text-center">
+                  <AlertTriangle className="w-12 h-12 text-red-400 mx-auto mb-4" />
+                  <h2 className="text-xl font-semibold text-red-200 mb-2">
+                    Error Loading Active Futures
+                  </h2>
+                  <p className="text-red-300">
+                    {activeFuturesError
+                      ? String(activeFuturesError)
+                      : "Unknown error occurred"}
+                  </p>
+                </CardContent>
+              </Card>
+            ) : (
+              <>
+                {/* Active Futures Search and Filter Controls */}
+                <div className="mb-6">
+                  <div className="flex flex-wrap gap-4 items-center">
+                    <div className="flex-1 min-w-[250px] relative">
+                      <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
+                      <Input
+                        placeholder="Search futures, content, or trader..."
+                        value={activeFuturesSearchTerm}
+                        onChange={(e) =>
+                          setActiveFuturesSearchTerm(e.target.value)
+                        }
+                        className="pl-10 bg-gray-900/50 border-gray-700 text-white"
+                      />
+                    </div>
+
+                    <Select
+                      value={selectedActiveFuturesTrader}
+                      onValueChange={setSelectedActiveFuturesTrader}
+                    >
+                      <SelectTrigger className="w-[140px] bg-gray-900/50 border-gray-700 text-white">
+                        <Filter className="w-4 h-4 mr-2" />
+                        <SelectValue placeholder="Trader" />
+                      </SelectTrigger>
+                      <SelectContent className="bg-gray-900 border-gray-700">
+                        <SelectItem value="all">All Traders</SelectItem>
+                        {activeFuturesTraders.map((trader, index: number) => (
+                          <SelectItem
+                            key={`activefutures-trader-${trader}-${index}`}
+                            value={trader}
+                          >
+                            {trader}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+
+                    <Select
+                      value={selectedActiveFuturesStatus}
+                      onValueChange={setSelectedActiveFuturesStatus}
+                    >
+                      <SelectTrigger className="w-[140px] bg-gray-900/50 border-gray-700 text-white">
+                        <Filter className="w-4 h-4 mr-2" />
+                        <SelectValue placeholder="Status" />
+                      </SelectTrigger>
+                      <SelectContent className="bg-gray-900 border-gray-700">
+                        <SelectItem value="all">All Status</SelectItem>
+                        {activeFuturesStatuses.map((status, index: number) => (
+                          <SelectItem
+                            key={`activefutures-status-${status}-${index}`}
+                            value={status}
+                          >
+                            {status}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+
+                    <Select
+                      value={activeFuturesDateRange}
+                      onValueChange={setActiveFuturesDateRange}
+                    >
+                      <SelectTrigger className="w-[150px] bg-gray-900/50 border-gray-700 text-white">
+                        <Filter className="w-4 h-4 mr-2" />
+                        <SelectValue placeholder="Date Range" />
+                      </SelectTrigger>
+                      <SelectContent className="bg-gray-900 border-gray-700">
+                        <SelectItem value="all">All Time</SelectItem>
+                        <SelectItem value="today">Today</SelectItem>
+                        <SelectItem value="yesterday">Yesterday</SelectItem>
+                        <SelectItem value="7days">Last 7 Days</SelectItem>
+                        <SelectItem value="30days">Last 30 Days</SelectItem>
+                      </SelectContent>
+                    </Select>
+
+                    <Select
+                      value={activeFuturesSortBy}
+                      onValueChange={(value) =>
+                        setActiveFuturesSortBy(value as "newest" | "oldest")
+                      }
+                    >
+                      <SelectTrigger className="w-[140px] bg-gray-900/50 border-gray-700 text-white">
+                        <ArrowUpDown className="w-4 h-4 mr-2" />
+                        <SelectValue placeholder="Sort" />
+                      </SelectTrigger>
+                      <SelectContent className="bg-gray-900 border-gray-700">
+                        <SelectItem value="newest">Newest</SelectItem>
+                        <SelectItem value="oldest">Oldest</SelectItem>
+                      </SelectContent>
+                    </Select>
+
+                    <Select
+                      value={activeFuturesResultLimit.toString()}
+                      onValueChange={(value) =>
+                        setActiveFuturesResultLimit(parseInt(value))
+                      }
+                    >
+                      <SelectTrigger className="w-[100px] bg-gray-900/50 border-gray-700 text-white">
+                        <Filter className="w-4 h-4 mr-2" />
+                        <SelectValue placeholder="Show" />
+                      </SelectTrigger>
+                      <SelectContent className="bg-gray-900 border-gray-700">
+                        <SelectItem value="25">25</SelectItem>
+                        <SelectItem value="50">50</SelectItem>
+                        <SelectItem value="100">100</SelectItem>
+                        <SelectItem value="200">200</SelectItem>
+                        <SelectItem value="500">500</SelectItem>
+                        <SelectItem value="9999">All</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
+
+                <Card className="bg-gray-900/50 border-gray-700 shadow-2xl">
+                  <CardHeader className="border-b border-gray-700">
+                    <CardTitle className="text-white flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <Activity className="w-5 h-5" />
+                        Active Futures ({filteredActiveFutures.length} of{" "}
+                        {activeFuturesData?.length || 0} entries)
+                      </div>
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent className="p-0">
+                    <div className="overflow-x-auto">
+                      <Table>
+                        <TableHeader>
+                          <TableRow className="border-gray-700 hover:bg-gray-800/50 bg-gray-800/30">
+                            <TableHead className="text-gray-300 font-semibold min-w-[150px]">
+                              Date/Time (UAE)
+                            </TableHead>
+                            <TableHead className="text-gray-300 font-semibold min-w-[90px]">
+                              Trader
+                            </TableHead>
+                            <TableHead className="text-gray-300 font-semibold min-w-[200px]">
+                              Title
+                            </TableHead>
+                            <TableHead className="text-gray-300 font-semibold min-w-[300px]">
+                              Content
+                            </TableHead>
+                            <TableHead className="text-gray-300 font-semibold min-w-[100px]">
+                              Status
+                            </TableHead>
+                            <TableHead className="text-gray-300 font-semibold min-w-[150px]">
+                              Stopped At
+                            </TableHead>
+                          </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                          {filteredActiveFutures.map(
+                            (future: ActiveFutures, index: number) => (
+                              <TableRow
+                                key={`active-future-${future.id}-${index}`}
+                                className="border-gray-700 hover:bg-gray-800/30 transition-colors"
+                              >
+                                <TableCell className="font-mono text-sm text-gray-300">
+                                  <div className="flex flex-col">
+                                    <span className="font-medium">
+                                      {formatInTimeZone(
+                                        new Date(future.created_at),
+                                        "Asia/Dubai",
+                                        "MMM dd, yyyy"
+                                      )}
+                                    </span>
+                                    <span className="text-xs text-gray-500">
+                                      {formatInTimeZone(
+                                        new Date(future.created_at),
+                                        "Asia/Dubai",
+                                        "HH:mm"
+                                      )}
+                                    </span>
+                                  </div>
+                                </TableCell>
+                                <TableCell>
+                                  <Badge
+                                    variant="outline"
+                                    className="border-orange-500/50 text-orange-300 bg-orange-900/50"
+                                  >
+                                    {future.trader}
+                                  </Badge>
+                                </TableCell>
+                                <TableCell className="max-w-[200px]">
+                                  <div
+                                    className="text-gray-200 text-sm leading-relaxed truncate"
+                                    title={future.title}
+                                  >
+                                    {future.title}
+                                  </div>
+                                </TableCell>
+                                <TableCell className="max-w-[300px]">
+                                  <div
+                                    className="text-gray-300 text-sm leading-relaxed"
+                                    title={future.content}
+                                  >
+                                    {future.content}
+                                  </div>
+                                </TableCell>
+                                <TableCell>
+                                  <Badge
+                                    variant="outline"
+                                    className={(() => {
+                                      const status = future.status
+                                        ?.toString()
+                                        .trim()
+                                        .toUpperCase();
+                                      switch (status) {
+                                        case "ACTIVE":
+                                          return "border-green-500/50 text-green-300 bg-green-900/20";
+                                        case "STOPPED":
+                                          return "border-red-500/50 text-red-300 bg-red-900/20";
+                                        case "PENDING":
+                                          return "border-yellow-500/50 text-yellow-300 bg-yellow-900/20";
+                                        default:
+                                          return "border-gray-500/50 text-gray-400 bg-gray-900/20";
+                                      }
+                                    })()}
+                                  >
+                                    {future.status}
+                                  </Badge>
+                                </TableCell>
+                                <TableCell className="font-mono text-sm text-gray-400">
+                                  {future.stopped_at ? (
+                                    <div className="flex flex-col">
+                                      <span className="font-medium">
+                                        {formatInTimeZone(
+                                          new Date(future.stopped_at),
+                                          "Asia/Dubai",
+                                          "MMM dd, yyyy"
+                                        )}
+                                      </span>
+                                      <span className="text-xs text-gray-500">
+                                        {formatInTimeZone(
+                                          new Date(future.stopped_at),
+                                          "Asia/Dubai",
+                                          "HH:mm"
+                                        )}
+                                      </span>
+                                    </div>
+                                  ) : (
+                                    <span className="text-gray-500">-</span>
+                                  )}
+                                </TableCell>
+                              </TableRow>
+                            )
+                          )}
+
+                          {filteredActiveFutures.length === 0 && (
+                            <TableRow key="empty-active-futures">
+                              <TableCell
+                                colSpan={6}
+                                className="text-center py-8"
+                              >
+                                <TrendingUp className="w-12 h-12 text-gray-500 mx-auto mb-4" />
+                                <p className="text-gray-400">
+                                  {activeFuturesSearchTerm ||
+                                  selectedActiveFuturesTrader !== "all" ||
+                                  selectedActiveFuturesStatus !== "all" ||
+                                  activeFuturesDateRange !== "all"
+                                    ? "No active futures match your filters"
+                                    : "No active futures available"}
                                 </p>
                               </TableCell>
                             </TableRow>
