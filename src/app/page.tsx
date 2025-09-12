@@ -3,10 +3,104 @@
 import Features from "@/components/Features";
 import { motion } from "framer-motion";
 import Link from "next/link";
+import { useState } from "react";
+import { useQuery } from "@tanstack/react-query";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { PlatformCard } from "@/app/trades-table/components/PlatformCard";
+import { LoadingSpinner } from "@/components/LoadingSpinner";
+import {
+  TrendingUp,
+  Activity,
+  DollarSign,
+  BarChart3,
+  RefreshCw,
+  Calendar,
+} from "lucide-react";
+
+// API functions
+async function fetchBinanceData() {
+  const response = await fetch("/api/binance");
+  if (!response.ok) {
+    const errorData = await response.json();
+    throw new Error(errorData.error || "Failed to fetch Binance data");
+  }
+  return response.json();
+}
+
+async function fetchPnLData(period: string, platform: string) {
+  const response = await fetch(
+    `/api/pnl?period=${period}&platform=${platform}`
+  );
+  if (!response.ok) {
+    const errorData = await response.json();
+    throw new Error(errorData.error || "Failed to fetch P&L data");
+  }
+  return response.json();
+}
 
 export default function Home() {
+  const [timePeriod, setTimePeriod] = useState<"day" | "week">("day");
+  const [selectedPlatform, setSelectedPlatform] = useState<
+    "all" | "binance" | "kucoin"
+  >("all");
+
+  // Binance data query
+  const {
+    data: binanceData,
+    isLoading: binanceLoading,
+    error: binanceError,
+    refetch: refetchBinance,
+  } = useQuery({
+    queryKey: ["binance-data"],
+    queryFn: fetchBinanceData,
+    refetchInterval: 60000, // Refetch every minute
+    retry: 3,
+  });
+
+  // P&L data query
+  const {
+    data: pnlData,
+    isLoading: pnlLoading,
+    error: pnlError,
+    refetch: refetchPnL,
+  } = useQuery({
+    queryKey: ["pnl-data", timePeriod, selectedPlatform],
+    queryFn: () => fetchPnLData(timePeriod, selectedPlatform),
+    refetchInterval: 30000, // Refetch every 30 seconds
+    retry: 3,
+  });
+
+  // Overall P&L data (all platforms)
+  const {
+    data: overallPnLData,
+    isLoading: overallPnLLoading,
+    error: overallPnLError,
+    refetch: refetchOverallPnL,
+  } = useQuery({
+    queryKey: ["overall-pnl-data", timePeriod],
+    queryFn: () => fetchPnLData(timePeriod, "all"),
+    refetchInterval: 30000,
+    retry: 3,
+  });
+
+  const handleRefreshAll = () => {
+    refetchBinance();
+    refetchPnL();
+    refetchOverallPnL();
+  };
+
+  const isLoading = binanceLoading || pnlLoading || overallPnLLoading;
+  const hasError = binanceError || pnlError || overallPnLError;
+
   return (
-    <main className="h-screen pt-24 flex flex-col bg-gradient-to-br from-black via-blue-950/20 to-black relative overflow-hidden">
+    <main className="min-h-screen pt-24 flex flex-col bg-gradient-to-br from-black via-blue-950/20 to-black relative overflow-hidden">
       {/* Background Animation */}
       <div className="absolute inset-0 overflow-hidden">
         <div className="absolute -inset-[10px] opacity-50">
@@ -55,8 +149,8 @@ export default function Home() {
 
       {/* Main content - subtract navbar height */}
       <div className="flex-1 mt-4 scrollbar-hide">
-        <div className="h-full mx-auto px-4 relative">
-          <div className="h-full flex flex-col">
+        <div className="min-h-full mx-auto px-4 relative">
+          <div className="min-h-full flex flex-col">
             {/* Hero Section - adjusted height */}
             <div className="flex flex-col lg:flex-row items-center justify-center gap-8 xl:gap-16 w-full max-w-7xl mx-auto h-[40vh] lg:h-[45vh]">
               {/* Left Content */}
@@ -176,7 +270,7 @@ export default function Home() {
             </div>
 
             {/* Features Section - adjusted height */}
-            <div className="flex-1 w-full max-w-7xl mx-auto h-[35vh]">
+            <div className="flex-1 w-full max-w-7xl mx-auto min-h-[35vh]">
               <Features />
             </div>
           </div>
@@ -328,6 +422,232 @@ export default function Home() {
               </div>
             </div>
           </motion.div>
+        </div>
+      </div>
+
+      {/* Trading Dashboard Section */}
+      <div className="pt-10 lg:pt-10 pb-10">
+        <div className="container mx-auto px-4">
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.5 }}
+            className="text-center mb-12"
+          >
+            <h1 className="text-4xl md:text-5xl font-extrabold mb-4 bg-clip-text text-transparent bg-gradient-to-r from-green-400 via-blue-300 to-emerald-400">
+              Trading Dashboard
+            </h1>
+            <p className="text-lg md:text-xl max-w-3xl mx-auto text-gray-300 mb-8">
+              Real-time portfolio and P&L tracking across all platforms
+            </p>
+
+            {/* Controls */}
+            <div className="flex flex-wrap gap-4 items-center justify-center mb-8">
+              <div className="flex items-center gap-2">
+                <Calendar className="w-4 h-4 text-gray-400" />
+                <Select
+                  value={timePeriod}
+                  onValueChange={(value) =>
+                    setTimePeriod(value as "day" | "week")
+                  }
+                >
+                  <SelectTrigger className="w-[140px] bg-gray-900/50 border-gray-700 text-white">
+                    <SelectValue placeholder="Time Period" />
+                  </SelectTrigger>
+                  <SelectContent className="bg-gray-900 border-gray-700">
+                    <SelectItem value="day">Today</SelectItem>
+                    <SelectItem value="week">This Week</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="flex items-center gap-2">
+                <Activity className="w-4 h-4 text-gray-400" />
+                <Select
+                  value={selectedPlatform}
+                  onValueChange={(value) =>
+                    setSelectedPlatform(value as "all" | "binance" | "kucoin")
+                  }
+                >
+                  <SelectTrigger className="w-[140px] bg-gray-900/50 border-gray-700 text-white">
+                    <SelectValue placeholder="Platform" />
+                  </SelectTrigger>
+                  <SelectContent className="bg-gray-900 border-gray-700">
+                    <SelectItem value="all">All Platforms</SelectItem>
+                    <SelectItem value="binance">Binance</SelectItem>
+                    <SelectItem value="kucoin">KuCoin</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <button
+                onClick={handleRefreshAll}
+                className="flex items-center gap-2 px-4 py-2 bg-gray-800/50 hover:bg-gray-700/50 border border-gray-600 rounded-lg transition-colors"
+                disabled={isLoading}
+              >
+                <RefreshCw
+                  className={`w-4 h-4 ${isLoading ? "animate-spin" : ""}`}
+                />
+                Refresh All
+              </button>
+            </div>
+          </motion.div>
+
+          {/* Overall Stats Cards */}
+          {overallPnLData && (
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.5, delay: 0.1 }}
+              className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-8"
+            >
+              <Card className="bg-gray-900/50 border-gray-700 shadow-2xl">
+                <CardContent className="p-6">
+                  <div className="flex items-center gap-2 mb-2">
+                    <DollarSign className="w-5 h-5 text-green-400" />
+                    <span className="text-sm font-medium text-gray-300">
+                      Total P&L
+                    </span>
+                  </div>
+                  <p
+                    className={`text-3xl font-bold ${
+                      overallPnLData.summary.totalPnL > 0
+                        ? "text-green-300"
+                        : overallPnLData.summary.totalPnL < 0
+                        ? "text-red-300"
+                        : "text-gray-300"
+                    }`}
+                  >
+                    ${overallPnLData.summary.totalPnL.toFixed(2)}
+                  </p>
+                  <p className="text-xs text-gray-400">
+                    {timePeriod === "day" ? "Today" : "This Week"}
+                  </p>
+                </CardContent>
+              </Card>
+
+              <Card className="bg-gray-900/50 border-gray-700 shadow-2xl">
+                <CardContent className="p-6">
+                  <div className="flex items-center gap-2 mb-2">
+                    <BarChart3 className="w-5 h-5 text-blue-400" />
+                    <span className="text-sm font-medium text-gray-300">
+                      Win Rate
+                    </span>
+                  </div>
+                  <p className="text-3xl font-bold text-blue-300">
+                    {overallPnLData.summary.winRate.toFixed(1)}%
+                  </p>
+                  <p className="text-xs text-gray-400">
+                    {overallPnLData.summary.profitableTrades}/
+                    {overallPnLData.summary.totalTrades} trades
+                  </p>
+                </CardContent>
+              </Card>
+
+              <Card className="bg-gray-900/50 border-gray-700 shadow-2xl">
+                <CardContent className="p-6">
+                  <div className="flex items-center gap-2 mb-2">
+                    <TrendingUp className="w-5 h-5 text-purple-400" />
+                    <span className="text-sm font-medium text-gray-300">
+                      Total Trades
+                    </span>
+                  </div>
+                  <p className="text-3xl font-bold text-purple-300">
+                    {overallPnLData.summary.totalTrades}
+                  </p>
+                  <p className="text-xs text-gray-400">
+                    {timePeriod === "day" ? "Today" : "This Week"}
+                  </p>
+                </CardContent>
+              </Card>
+
+              <Card className="bg-gray-900/50 border-gray-700 shadow-2xl">
+                <CardContent className="p-6">
+                  <div className="flex items-center gap-2 mb-2">
+                    <Activity className="w-5 h-5 text-orange-400" />
+                    <span className="text-sm font-medium text-gray-300">
+                      Avg P&L
+                    </span>
+                  </div>
+                  <p
+                    className={`text-3xl font-bold ${
+                      overallPnLData.summary.averagePnL > 0
+                        ? "text-green-300"
+                        : overallPnLData.summary.averagePnL < 0
+                        ? "text-red-300"
+                        : "text-gray-300"
+                    }`}
+                  >
+                    ${overallPnLData.summary.averagePnL.toFixed(2)}
+                  </p>
+                  <p className="text-xs text-gray-400">Per Trade</p>
+                </CardContent>
+              </Card>
+            </motion.div>
+          )}
+
+          {/* Platform Cards */}
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.5, delay: 0.2 }}
+            className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8"
+          >
+            {/* Binance Card */}
+            <PlatformCard
+              platformStats={binanceData}
+              pnlData={
+                selectedPlatform === "all" || selectedPlatform === "binance"
+                  ? pnlData
+                  : null
+              }
+              isLoading={binanceLoading}
+              error={binanceError?.message || null}
+              onRefresh={() => refetchBinance()}
+            />
+
+            {/* KuCoin Card - Placeholder for future implementation */}
+            <Card className="bg-gray-900/50 border-gray-700 shadow-2xl">
+              <CardHeader className="border-b border-gray-700">
+                <CardTitle className="text-white flex items-center gap-2">
+                  <Activity className="w-5 h-5" />
+                  KuCoin
+                  <span className="text-xs bg-yellow-900/50 text-yellow-300 px-2 py-1 rounded">
+                    Coming Soon
+                  </span>
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="p-6">
+                <div className="text-center py-8">
+                  <Activity className="w-12 h-12 text-gray-500 mx-auto mb-4" />
+                  <p className="text-gray-400">
+                    KuCoin integration will be available soon
+                  </p>
+                </div>
+              </CardContent>
+            </Card>
+          </motion.div>
+
+          {/* Loading State */}
+          {isLoading && !hasError && (
+            <div className="flex items-center justify-center py-8">
+              <LoadingSpinner />
+            </div>
+          )}
+
+          {/* Error State */}
+          {hasError && (
+            <Card className="bg-red-950/20 border-red-500/30 mt-6">
+              <CardContent className="p-6 text-center">
+                <p className="text-red-300">
+                  {binanceError?.message ||
+                    pnlError?.message ||
+                    overallPnLError?.message ||
+                    "Unknown error occurred"}
+                </p>
+              </CardContent>
+            </Card>
+          )}
         </div>
       </div>
 

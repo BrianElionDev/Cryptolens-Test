@@ -69,4 +69,5 @@ export interface Trade {
   binance_exit_price: number | null;
   binance_response: string | null;
   pnl_usd: number | null;
+  exchange:string | null;
 }
