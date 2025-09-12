@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useMemo } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
@@ -39,6 +39,8 @@ import { Alert, Trade } from "@/types/wealthgroup";
 import { ActiveFutures } from "@/types/active_futures";
 import { formatInTimeZone } from "date-fns-tz";
 import { BinanceResponseModal } from "@/components/modals/BinanceResponseModal";
+import { PlatformCard } from "./components/PlatformCard";
+import { RefreshCw } from "lucide-react";
 
 interface Transaction {
   time: string;
@@ -70,6 +72,7 @@ interface TradesRow {
   binance_response: string | null;
   pnl_usd: number | null;
   parsed_signal: object;
+  exchange: string | null;
 }
 
 async function fetchWealthgroupData() {
@@ -138,7 +141,47 @@ async function fetchActiveFutures() {
   return await response.json();
 }
 
+// API functions for platform cards
+async function fetchBinanceData() {
+  const response = await fetch("/api/binance");
+  if (!response.ok) {
+    const errorData = await response.json();
+    throw new Error(errorData.error || "Failed to fetch Binance data");
+  }
+  return response.json();
+}
+
+async function fetchPnLData(params: {
+  period?: string;
+  platform?: string;
+  range?: string;
+  from?: string;
+  to?: string;
+}) {
+  const searchParams = new URLSearchParams();
+  if (params.period) searchParams.set("period", params.period);
+  if (params.platform) searchParams.set("platform", params.platform);
+  if (params.range) searchParams.set("range", params.range);
+  if (params.from) searchParams.set("from", params.from);
+  if (params.to) searchParams.set("to", params.to);
+
+  const response = await fetch(`/api/pnl?${searchParams.toString()}`);
+  if (!response.ok) {
+    const errorData = await response.json();
+    throw new Error(errorData.error || "Failed to fetch P&L data");
+  }
+  return response.json();
+}
+
 export default function TradesTablePage() {
+  const queryClient = useQueryClient();
+
+  // Portfolio state
+  type PnlRange = "today" | "7days" | "30days" | "custom";
+  const [pnlRange, setPnlRange] = useState<PnlRange>("today");
+  const [pnlCustomFrom, setPnlCustomFrom] = useState<string>("");
+  const [pnlCustomTo, setPnlCustomTo] = useState<string>("");
+
   // Trading Log filters
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedState, setSelectedState] = useState("all");
@@ -257,6 +300,40 @@ export default function TradesTablePage() {
     queryKey: ["active_futures"],
     queryFn: fetchActiveFutures,
     refetchInterval: 60000, // 1 minute
+  });
+
+  // Portfolio queries
+  const {
+    data: binanceData,
+    isLoading: binanceLoading,
+    error: binanceError,
+    refetch: refetchBinance,
+  } = useQuery({
+    queryKey: ["binance-data"],
+    queryFn: fetchBinanceData,
+    refetchInterval: 300000, // Refetch every 5 minutes
+    retry: 3,
+  });
+
+  const { data: pnlData, refetch: refetchPnL } = useQuery({
+    queryKey: ["pnl-data", pnlRange, pnlCustomFrom, pnlCustomTo],
+    queryFn: () =>
+      fetchPnLData({
+        // keep period for backward-compat if no range provided
+        period: pnlRange === "custom" ? undefined : undefined,
+        platform: "all",
+        range: pnlRange !== "custom" ? pnlRange : undefined,
+        from:
+          pnlRange === "custom" && pnlCustomFrom
+            ? new Date(pnlCustomFrom).toISOString()
+            : undefined,
+        to:
+          pnlRange === "custom" && pnlCustomTo
+            ? new Date(pnlCustomTo).toISOString()
+            : undefined,
+      }),
+    refetchInterval: 120000, // Refetch every 2 minutes
+    retry: 3,
   });
 
   // Expanded rows state for trades
@@ -700,13 +777,78 @@ export default function TradesTablePage() {
       </div>
 
       <div className=" mx-auto px-4  py-8 relative z-10 w-full">
-        <div className="mb-8">
-          <h1 className="text-4xl font-bold bg-gradient-to-r from-white to-gray-400 bg-clip-text text-transparent mb-4">
-            Trading Journal
-          </h1>
-          <p className="text-gray-400 text-lg">
-            Complete trade log with entry signals and follow-up alerts
-          </p>
+        {/* Compact Portfolio Cards */}
+        <div className="mb-6">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            {/* Binance Futures Card */}
+            <PlatformCard
+              platformStats={
+                binanceData
+                  ? {
+                      platform: binanceData.platform,
+                      accountType: binanceData.accountType,
+                      totalBalanceUSDT: binanceData.totalBalanceUSDT,
+                      totalPortfolioValue: binanceData.totalPortfolioValue,
+                      totalWalletBalance: binanceData.totalWalletBalance,
+                      totalUnrealizedProfit: binanceData.totalUnrealizedProfit,
+                      canTrade: binanceData.canTrade,
+                      canWithdraw: binanceData.canWithdraw,
+                      canDeposit: binanceData.canDeposit,
+                      balances: binanceData.balances,
+                      lastUpdated: binanceData.lastUpdated,
+                      error: binanceError?.message,
+                    }
+                  : null
+              }
+              pnlData={pnlData}
+              pnlRange={pnlRange}
+              pnlCustomFrom={pnlCustomFrom}
+              pnlCustomTo={pnlCustomTo}
+              onPnlRangeChange={(value) => setPnlRange(value as PnlRange)}
+              onPnlCustomFromChange={(value) => setPnlCustomFrom(value)}
+              onPnlCustomToChange={(value) => setPnlCustomTo(value)}
+              isLoading={binanceLoading}
+              error={binanceError?.message || null}
+              onRefresh={() => {
+                queryClient.invalidateQueries({ queryKey: ["binance-data"] });
+                refetchBinance();
+              }}
+              onPnlRefresh={() => {
+                queryClient.invalidateQueries({ queryKey: ["pnl-data"] });
+                refetchPnL();
+              }}
+            />
+
+            {/* KuCoin Futures Card - Placeholder */}
+            <Card className="bg-gray-900/50 border-gray-700 shadow-2xl">
+              <CardHeader className="border-b border-gray-700 py-2 px-3">
+                <CardTitle className="text-white flex items-center justify-between text-sm">
+                  <div className="flex items-center gap-1.5">
+                    <Activity className="w-4 h-4" />
+                    <span className="font-medium">KuCoin</span>
+                    <Badge
+                      variant="outline"
+                      className="border-orange-500/50 text-orange-300 text-xs px-1.5 py-0.5"
+                    >
+                      FUTURES
+                    </Badge>
+                  </div>
+                  <button className="p-1 hover:bg-gray-700/50 rounded transition-colors">
+                    <RefreshCw className="w-3 h-3" />
+                  </button>
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="p-3">
+                <div className="text-center py-8">
+                  <div className="w-12 h-12 bg-orange-500/20 rounded-full flex items-center justify-center mx-auto mb-3">
+                    <Activity className="w-6 h-6 text-orange-400" />
+                  </div>
+                  <p className="text-gray-400 text-sm">KuCoin Futures</p>
+                  <p className="text-gray-500 text-xs">Coming soon</p>
+                </div>
+              </CardContent>
+            </Card>
+          </div>
         </div>
 
         <Tabs defaultValue="trades" className="w-full">
@@ -722,14 +864,14 @@ export default function TradesTablePage() {
               className="data-[state=active]:bg-gray-800"
             >
               Active Futures
-            </TabsTrigger>                  
+            </TabsTrigger>
             <TabsTrigger
               value="trading-log"
               className="data-[state=active]:bg-gray-800"
             >
               Trading Log
             </TabsTrigger>
-          
+
             <TabsTrigger
               value="transactions"
               className="data-[state=active]:bg-gray-800"
@@ -738,7 +880,6 @@ export default function TradesTablePage() {
             </TabsTrigger>
           </TabsList>
 
-       
           <TabsContent value="trading-log" className="mt-6">
             <div className="mt-4 flex flex-wrap gap-4 text-sm text-gray-500 mb-6">
               <div className="flex items-center gap-2">
@@ -1041,7 +1182,7 @@ export default function TradesTablePage() {
               </CardContent>
             </Card>
           </TabsContent>
- 
+
           <TabsContent value="trades" className="mt-6">
             {isLoading ? (
               <div className="flex items-center justify-center py-8">
@@ -1262,6 +1403,9 @@ export default function TradesTablePage() {
                             <TableHead className="text-gray-300 font-semibold min-w-[100px]">
                               P&L (USD)
                             </TableHead>
+                            <TableHead className="text-gray-300 font-semibold min-w-[90px]">
+                              Exchange
+                            </TableHead>
                             <TableHead className="text-gray-300 font-semibold min-w-[80px]">
                               Details
                             </TableHead>
@@ -1439,12 +1583,16 @@ export default function TradesTablePage() {
 
                                   <TableCell className="text-blue-200 font-medium">
                                     {trade.binance_entry_price
-                                      ? `$${trade.binance_entry_price}`
+                                      ? `$${trade.binance_entry_price.toFixed(
+                                          2
+                                        )}`
                                       : "-"}
                                   </TableCell>
                                   <TableCell className="text-purple-200 font-medium">
                                     {trade.binance_exit_price
-                                      ? `$${trade.binance_exit_price}`
+                                      ? `$${trade.binance_exit_price.toFixed(
+                                          2
+                                        )}`
                                       : "-"}
                                   </TableCell>
                                   <TableCell
@@ -1459,6 +1607,20 @@ export default function TradesTablePage() {
                                     {trade.pnl_usd
                                       ? `$${trade.pnl_usd.toFixed(2)}`
                                       : "-"}
+                                  </TableCell>
+                                  <TableCell>
+                                    <Badge
+                                      variant="outline"
+                                      className={`border-gray-500/50 text-gray-300 bg-gray-900/50 ${
+                                        trade.exchange &&
+                                        trade.exchange.toLowerCase() ===
+                                          "binance"
+                                          ? "border-yellow-500/50 text-yellow-300 bg-yellow-900/50"
+                                          : "border-green-500/50 text-green-300 bg-green-900/50"
+                                      }`}
+                                    >
+                                      {trade.exchange || "-"}
+                                    </Badge>
                                   </TableCell>
                                   <TableCell>
                                     <button
@@ -1643,7 +1805,7 @@ export default function TradesTablePage() {
                                                         className="border-blue-500/50 text-blue-300 bg-blue-900/20 text-xs"
                                                       >
                                                         {getStateFromSignal(
-                                                          trade as Trade,
+                                                          trade as unknown as Trade,
                                                           alert
                                                         )}
                                                       </Badge>
