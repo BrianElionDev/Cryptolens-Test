@@ -59,12 +59,11 @@ export default function Home() {
   });
 
   const handleRefreshAll = () => {
-    refetchPnL();
     refetchOverallPnL();
   };
 
-  const isLoading = pnlLoading || overallPnLLoading;
-  const hasError = pnlError || overallPnLError;
+  const isLoading = overallPnLLoading;
+  const hasError = overallPnLError;
 
   return (
     <main className="min-h-screen pt-24 flex flex-col bg-gradient-to-br from-black via-blue-950/20 to-black relative overflow-hidden">
@@ -575,9 +574,7 @@ export default function Home() {
             <Card className="bg-red-950/20 border-red-500/30 mt-6">
               <CardContent className="p-6 text-center">
                 <p className="text-red-300">
-                  {pnlError?.message ||
-                    overallPnLError?.message ||
-                    "Unknown error occurred"}
+                  {overallPnLError?.message || "Unknown error occurred"}
                 </p>
               </CardContent>
             </Card>
