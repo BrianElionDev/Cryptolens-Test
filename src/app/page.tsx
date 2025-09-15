@@ -5,7 +5,7 @@ import { motion } from "framer-motion";
 import Link from "next/link";
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import {
   Select,
   SelectContent,
@@ -13,7 +13,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { PlatformCard } from "@/app/trades-table/components/PlatformCard";
+import { DynamicPlatformCards } from "@/app/trades-table/components/DynamicPlatformCards";
 import { LoadingSpinner } from "@/components/LoadingSpinner";
 import {
   TrendingUp,
@@ -24,15 +24,7 @@ import {
   Calendar,
 } from "lucide-react";
 
-// API functions
-async function fetchBinanceData() {
-  const response = await fetch("/api/binance");
-  if (!response.ok) {
-    const errorData = await response.json();
-    throw new Error(errorData.error || "Failed to fetch Binance data");
-  }
-  return response.json();
-}
+// Removed old API functions - now using dynamic platform cards
 
 async function fetchPnLData(period: string, platform: string) {
   const response = await fetch(
@@ -51,31 +43,7 @@ export default function Home() {
     "all" | "binance" | "kucoin"
   >("all");
 
-  // Binance data query
-  const {
-    data: binanceData,
-    isLoading: binanceLoading,
-    error: binanceError,
-    refetch: refetchBinance,
-  } = useQuery({
-    queryKey: ["binance-data"],
-    queryFn: fetchBinanceData,
-    refetchInterval: 60000, // Refetch every minute
-    retry: 3,
-  });
-
-  // P&L data query
-  const {
-    data: pnlData,
-    isLoading: pnlLoading,
-    error: pnlError,
-    refetch: refetchPnL,
-  } = useQuery({
-    queryKey: ["pnl-data", timePeriod, selectedPlatform],
-    queryFn: () => fetchPnLData(timePeriod, selectedPlatform),
-    refetchInterval: 30000, // Refetch every 30 seconds
-    retry: 3,
-  });
+  // Removed individual platform queries - now using dynamic platform cards
 
   // Overall P&L data (all platforms)
   const {
@@ -91,13 +59,12 @@ export default function Home() {
   });
 
   const handleRefreshAll = () => {
-    refetchBinance();
     refetchPnL();
     refetchOverallPnL();
   };
 
-  const isLoading = binanceLoading || pnlLoading || overallPnLLoading;
-  const hasError = binanceError || pnlError || overallPnLError;
+  const isLoading = pnlLoading || overallPnLLoading;
+  const hasError = pnlError || overallPnLError;
 
   return (
     <main className="min-h-screen pt-24 flex flex-col bg-gradient-to-br from-black via-blue-950/20 to-black relative overflow-hidden">
@@ -586,46 +553,14 @@ export default function Home() {
             </motion.div>
           )}
 
-          {/* Platform Cards */}
+          {/* Dynamic Platform Cards */}
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.5, delay: 0.2 }}
-            className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8"
+            className="mb-8"
           >
-            {/* Binance Card */}
-            <PlatformCard
-              platformStats={binanceData}
-              pnlData={
-                selectedPlatform === "all" || selectedPlatform === "binance"
-                  ? pnlData
-                  : null
-              }
-              isLoading={binanceLoading}
-              error={binanceError?.message || null}
-              onRefresh={() => refetchBinance()}
-            />
-
-            {/* KuCoin Card - Placeholder for future implementation */}
-            <Card className="bg-gray-900/50 border-gray-700 shadow-2xl">
-              <CardHeader className="border-b border-gray-700">
-                <CardTitle className="text-white flex items-center gap-2">
-                  <Activity className="w-5 h-5" />
-                  KuCoin
-                  <span className="text-xs bg-yellow-900/50 text-yellow-300 px-2 py-1 rounded">
-                    Coming Soon
-                  </span>
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="p-6">
-                <div className="text-center py-8">
-                  <Activity className="w-12 h-12 text-gray-500 mx-auto mb-4" />
-                  <p className="text-gray-400">
-                    KuCoin integration will be available soon
-                  </p>
-                </div>
-              </CardContent>
-            </Card>
+            <DynamicPlatformCards />
           </motion.div>
 
           {/* Loading State */}
@@ -640,8 +575,7 @@ export default function Home() {
             <Card className="bg-red-950/20 border-red-500/30 mt-6">
               <CardContent className="p-6 text-center">
                 <p className="text-red-300">
-                  {binanceError?.message ||
-                    pnlError?.message ||
+                  {pnlError?.message ||
                     overallPnLError?.message ||
                     "Unknown error occurred"}
                 </p>
