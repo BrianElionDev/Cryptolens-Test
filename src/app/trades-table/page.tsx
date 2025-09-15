@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useMemo } from "react";
-import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useQuery } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
@@ -39,8 +39,7 @@ import { Alert, Trade } from "@/types/wealthgroup";
 import { ActiveFutures } from "@/types/active_futures";
 import { formatInTimeZone } from "date-fns-tz";
 import { BinanceResponseModal } from "@/components/modals/BinanceResponseModal";
-import { PlatformCard } from "./components/PlatformCard";
-import { RefreshCw } from "lucide-react";
+import { DynamicPlatformCards } from "./components/DynamicPlatformCards";
 
 interface Transaction {
   time: string;
@@ -141,47 +140,9 @@ async function fetchActiveFutures() {
   return await response.json();
 }
 
-// API functions for platform cards
-async function fetchBinanceData() {
-  const response = await fetch("/api/binance");
-  if (!response.ok) {
-    const errorData = await response.json();
-    throw new Error(errorData.error || "Failed to fetch Binance data");
-  }
-  return response.json();
-}
-
-async function fetchPnLData(params: {
-  period?: string;
-  platform?: string;
-  range?: string;
-  from?: string;
-  to?: string;
-}) {
-  const searchParams = new URLSearchParams();
-  if (params.period) searchParams.set("period", params.period);
-  if (params.platform) searchParams.set("platform", params.platform);
-  if (params.range) searchParams.set("range", params.range);
-  if (params.from) searchParams.set("from", params.from);
-  if (params.to) searchParams.set("to", params.to);
-
-  const response = await fetch(`/api/pnl?${searchParams.toString()}`);
-  if (!response.ok) {
-    const errorData = await response.json();
-    throw new Error(errorData.error || "Failed to fetch P&L data");
-  }
-  return response.json();
-}
+// Removed old API functions - now using dynamic platform cards
 
 export default function TradesTablePage() {
-  const queryClient = useQueryClient();
-
-  // Portfolio state
-  type PnlRange = "today" | "7days" | "30days" | "custom";
-  const [pnlRange, setPnlRange] = useState<PnlRange>("today");
-  const [pnlCustomFrom, setPnlCustomFrom] = useState<string>("");
-  const [pnlCustomTo, setPnlCustomTo] = useState<string>("");
-
   // Trading Log filters
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedState, setSelectedState] = useState("all");
@@ -197,6 +158,7 @@ export default function TradesTablePage() {
   const [selectedSignalType, setSelectedSignalType] = useState("all");
   const [selectedStatus, setSelectedStatus] = useState("all");
   const [selectedCoinTrades, setSelectedCoinTrades] = useState("all");
+  const [selectedExchange, setSelectedExchange] = useState("all");
   const [tradesSortBy, setTradesSortBy] = useState<"newest" | "oldest">(
     "newest"
   );
@@ -303,38 +265,7 @@ export default function TradesTablePage() {
   });
 
   // Portfolio queries
-  const {
-    data: binanceData,
-    isLoading: binanceLoading,
-    error: binanceError,
-    refetch: refetchBinance,
-  } = useQuery({
-    queryKey: ["binance-data"],
-    queryFn: fetchBinanceData,
-    refetchInterval: 300000, // Refetch every 5 minutes
-    retry: 3,
-  });
-
-  const { data: pnlData, refetch: refetchPnL } = useQuery({
-    queryKey: ["pnl-data", pnlRange, pnlCustomFrom, pnlCustomTo],
-    queryFn: () =>
-      fetchPnLData({
-        // keep period for backward-compat if no range provided
-        period: pnlRange === "custom" ? undefined : undefined,
-        platform: "all",
-        range: pnlRange !== "custom" ? pnlRange : undefined,
-        from:
-          pnlRange === "custom" && pnlCustomFrom
-            ? new Date(pnlCustomFrom).toISOString()
-            : undefined,
-        to:
-          pnlRange === "custom" && pnlCustomTo
-            ? new Date(pnlCustomTo).toISOString()
-            : undefined,
-      }),
-    refetchInterval: 120000, // Refetch every 2 minutes
-    retry: 3,
-  });
+  // Removed individual platform queries - now using dynamic platform cards
 
   // Expanded rows state for trades
   const [expandedRows, setExpandedRows] = useState<Set<number>>(new Set());
@@ -419,6 +350,15 @@ export default function TradesTablePage() {
         .map((trade: Trade) => trade.trader)
     );
     return Array.from(uniqueTraders).sort() as string[];
+  }, [tradesData]);
+
+  const exchanges = useMemo((): string[] => {
+    const uniqueExchanges = new Set(
+      tradesData
+        .filter((trade: Trade) => trade.exchange)
+        .map((trade: Trade) => trade.exchange)
+    );
+    return Array.from(uniqueExchanges).sort() as string[];
   }, [tradesData]);
 
   const signalTypes = useMemo((): string[] => {
@@ -616,6 +556,9 @@ export default function TradesTablePage() {
         trade.parsed_signal?.coin_symbol?.toUpperCase() ===
           selectedCoinTrades.toUpperCase();
 
+      const matchesExchange =
+        selectedExchange === "all" || trade.exchange === selectedExchange;
+
       // Date range filtering
       const tradeDate = new Date(trade.timestamp);
       const tradesDateRangeFilter = getDateRange(tradesDateRange);
@@ -630,6 +573,7 @@ export default function TradesTablePage() {
         matchesSignalType &&
         matchesStatus &&
         matchesCoin &&
+        matchesExchange &&
         matchesDateRange
       );
     });
@@ -649,6 +593,7 @@ export default function TradesTablePage() {
     selectedSignalType,
     selectedStatus,
     selectedCoinTrades,
+    selectedExchange,
     tradesSortBy,
     tradesResultLimit,
     tradesDateRange,
@@ -777,78 +722,9 @@ export default function TradesTablePage() {
       </div>
 
       <div className=" mx-auto px-4  py-8 relative z-10 w-full">
-        {/* Compact Portfolio Cards */}
+        {/* Dynamic Platform Cards */}
         <div className="mb-6">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            {/* Binance Futures Card */}
-            <PlatformCard
-              platformStats={
-                binanceData
-                  ? {
-                      platform: binanceData.platform,
-                      accountType: binanceData.accountType,
-                      totalBalanceUSDT: binanceData.totalBalanceUSDT,
-                      totalPortfolioValue: binanceData.totalPortfolioValue,
-                      totalWalletBalance: binanceData.totalWalletBalance,
-                      totalUnrealizedProfit: binanceData.totalUnrealizedProfit,
-                      canTrade: binanceData.canTrade,
-                      canWithdraw: binanceData.canWithdraw,
-                      canDeposit: binanceData.canDeposit,
-                      balances: binanceData.balances,
-                      lastUpdated: binanceData.lastUpdated,
-                      error: binanceError?.message,
-                    }
-                  : null
-              }
-              pnlData={pnlData}
-              pnlRange={pnlRange}
-              pnlCustomFrom={pnlCustomFrom}
-              pnlCustomTo={pnlCustomTo}
-              onPnlRangeChange={(value) => setPnlRange(value as PnlRange)}
-              onPnlCustomFromChange={(value) => setPnlCustomFrom(value)}
-              onPnlCustomToChange={(value) => setPnlCustomTo(value)}
-              isLoading={binanceLoading}
-              error={binanceError?.message || null}
-              onRefresh={() => {
-                queryClient.invalidateQueries({ queryKey: ["binance-data"] });
-                refetchBinance();
-              }}
-              onPnlRefresh={() => {
-                queryClient.invalidateQueries({ queryKey: ["pnl-data"] });
-                refetchPnL();
-              }}
-            />
-
-            {/* KuCoin Futures Card - Placeholder */}
-            <Card className="bg-gray-900/50 border-gray-700 shadow-2xl">
-              <CardHeader className="border-b border-gray-700 py-2 px-3">
-                <CardTitle className="text-white flex items-center justify-between text-sm">
-                  <div className="flex items-center gap-1.5">
-                    <Activity className="w-4 h-4" />
-                    <span className="font-medium">KuCoin</span>
-                    <Badge
-                      variant="outline"
-                      className="border-orange-500/50 text-orange-300 text-xs px-1.5 py-0.5"
-                    >
-                      FUTURES
-                    </Badge>
-                  </div>
-                  <button className="p-1 hover:bg-gray-700/50 rounded transition-colors">
-                    <RefreshCw className="w-3 h-3" />
-                  </button>
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="p-3">
-                <div className="text-center py-8">
-                  <div className="w-12 h-12 bg-orange-500/20 rounded-full flex items-center justify-center mx-auto mb-3">
-                    <Activity className="w-6 h-6 text-orange-400" />
-                  </div>
-                  <p className="text-gray-400 text-sm">KuCoin Futures</p>
-                  <p className="text-gray-500 text-xs">Coming soon</p>
-                </div>
-              </CardContent>
-            </Card>
-          </div>
+          <DynamicPlatformCards />
         </div>
 
         <Tabs defaultValue="trades" className="w-full">
@@ -1294,6 +1170,27 @@ export default function TradesTablePage() {
                             value={coin}
                           >
                             {coin}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+
+                    <Select
+                      value={selectedExchange}
+                      onValueChange={setSelectedExchange}
+                    >
+                      <SelectTrigger className="w-[140px] bg-gray-900/50 border-gray-700 text-white">
+                        <Filter className="w-4 h-4 mr-2" />
+                        <SelectValue placeholder="Exchange" />
+                      </SelectTrigger>
+                      <SelectContent className="bg-gray-900 border-gray-700">
+                        <SelectItem value="all">All Exchanges</SelectItem>
+                        {exchanges.map((exchange, index: number) => (
+                          <SelectItem
+                            key={`exchange-${exchange}-${index}`}
+                            value={exchange}
+                          >
+                            {exchange}
                           </SelectItem>
                         ))}
                       </SelectContent>

@@ -22,7 +22,7 @@ export async function GET(request: Request) {
     // Calculate date range
     const now = new Date();
     let startDate: Date | null = null;
-    let endDate: Date = now;
+    let endDate: Date = new Date(); // Use current date instead of now
 
     // 1) Custom range overrides
     if (fromParam || toParam) {
@@ -83,21 +83,17 @@ export async function GET(request: Request) {
     // Build query based on platform filter
     let query = supabase
       .from("trades")
-      .select("pnl_usd, net_pnl, timestamp, trader, coin_symbol, status")
+      .select(
+        "pnl_usd, net_pnl, timestamp, trader, coin_symbol, status, exchange"
+      )
       .gte("timestamp", startDate.toISOString())
-      .lte("timestamp", endDate.toISOString())
-      .not("pnl_usd", "is", null);
+      .lte("timestamp", endDate.toISOString());
 
     // Apply platform filter if specified
     if (platform !== "all") {
-      // For now, we'll filter by trader or add platform field later
-      // This is a placeholder - you might want to add a platform field to your trades table
-      if (platform === "binance") {
-        // Filter for Binance trades (you might need to adjust this based on your data structure)
-        query = query.like("trader", "%binance%");
-      } else if (platform === "kucoin") {
-        query = query.like("trader", "%kucoin%");
-      }
+      // Filter by exchange field (platform)
+      const normalizedPlatform = platform.toLowerCase();
+      query = query.eq("exchange", normalizedPlatform);
     }
 
     const { data: trades, error } = await query;
