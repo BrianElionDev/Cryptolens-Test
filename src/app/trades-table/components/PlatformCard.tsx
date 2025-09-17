@@ -193,7 +193,7 @@ export function PlatformCard({
                     <div className="flex items-center gap-1.5">
                       <TrendingUp className="w-3 h-3 text-blue-400" />
                       <span className="text-xs font-medium text-gray-300">
-                        P&L
+                        Unrealized P&L
                       </span>
                     </div>
                     <span
@@ -372,7 +372,7 @@ export function PlatformCard({
             <div className="flex items-center justify-center gap-1">
               <div className="w-1.5 h-1.5 bg-green-400 rounded-full animate-pulse"></div>
               <span>
-                {new Date(platformStats.lastUpdated).toLocaleTimeString()}
+              {new Date(platformStats.lastUpdated).toLocaleString(undefined, { dateStyle: "medium", timeStyle: "short" })}
               </span>
             </div>
           </div>
