@@ -6,14 +6,14 @@ export interface Alert {
   content: string;
   status: string;
   parsed_alert?: ParsedAlert;
-  binance_response?: string;
+  exchange_response?: string;
 }
 
 // New parsed alert format
 export interface ActionDetermined {
   action_type: string;
   action_description: string;
-  binance_action: string;
+  exchange_action: string;
   position_status: string;
   stop_loss: number;
   take_profit: number | null;
@@ -65,9 +65,9 @@ export interface Trade {
   exchange_order_id: string | null;
   exit_price: number | null;
   entry_price: number | null;
-  binance_entry_price: number | null;
-  binance_exit_price: number | null;
-  binance_response: string | null;
+  exchange_entry_price: number | null;
+  exchange_exit_price: number | null;
+  exchange_response: string | null;
   pnl_usd: number | null;
-  exchange:string | null;
+  exchange: string | null;
 }

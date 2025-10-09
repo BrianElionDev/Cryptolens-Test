@@ -16,6 +16,7 @@ export async function GET(request: NextRequest) {
     const type = searchParams.get("type");
     const asset = searchParams.get("asset");
     const symbol = searchParams.get("symbol");
+    const exchange = searchParams.get("exchange");
     const search = searchParams.get("search");
     const dateFrom = searchParams.get("dateFrom");
     const dateTo = searchParams.get("dateTo");
@@ -44,9 +45,13 @@ export async function GET(request: NextRequest) {
       query = query.eq("symbol", symbol);
     }
 
+    if (exchange && exchange !== "all") {
+      query = query.eq("exchange", exchange);
+    }
+
     if (search) {
       query = query.or(
-        `type.ilike.%${search}%,asset.ilike.%${search}%,symbol.ilike.%${search}%`
+        `type.ilike.%${search}%,asset.ilike.%${search}%,symbol.ilike.%${search}%,exchange.ilike.%${search}%`
       );
     }
 
