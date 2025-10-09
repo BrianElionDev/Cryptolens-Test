@@ -38,7 +38,7 @@ import {
 import { Alert, Trade } from "@/types/wealthgroup";
 import { ActiveFutures } from "@/types/active_futures";
 import { formatInTimeZone } from "date-fns-tz";
-import { BinanceResponseModal } from "@/components/modals/BinanceResponseModal";
+import { ExchangeResponseModal } from "./components/ExchangeResponseModal";
 import { DynamicPlatformCards } from "./components/DynamicPlatformCards";
 
 interface Transaction {
@@ -47,6 +47,7 @@ interface Transaction {
   amount: number;
   asset: string;
   symbol: string;
+  exchange?: string;
 }
 
 interface TradesRow {
@@ -89,6 +90,7 @@ async function fetchTransactionHistory(params: {
   type?: string;
   asset?: string;
   symbol?: string;
+  exchange?: string;
   search?: string;
   dateFrom?: string;
   dateTo?: string;
@@ -186,6 +188,8 @@ export default function TradesTablePage() {
     useState("all");
   const [selectedTransactionSymbol, setSelectedTransactionSymbol] =
     useState("all");
+  const [selectedTransactionExchange, setSelectedTransactionExchange] =
+    useState("all");
   const [transactionsSortBy, setTransactionsSortBy] = useState<
     "newest" | "oldest"
   >("newest");
@@ -226,6 +230,7 @@ export default function TradesTablePage() {
       selectedTransactionType,
       selectedTransactionAsset,
       selectedTransactionSymbol,
+      selectedTransactionExchange,
       transactionsSortBy,
       transactionsResultLimit,
     ],
@@ -245,6 +250,10 @@ export default function TradesTablePage() {
         symbol:
           selectedTransactionSymbol !== "all"
             ? selectedTransactionSymbol
+            : undefined,
+        exchange:
+          selectedTransactionExchange !== "all"
+            ? selectedTransactionExchange
             : undefined,
         sortBy: "time",
         sortOrder: transactionsSortBy === "newest" ? "DESC" : "ASC",
@@ -759,20 +768,8 @@ export default function TradesTablePage() {
           <TabsContent value="trading-log" className="mt-6">
             <div className="mt-4 flex flex-wrap gap-4 text-sm text-gray-500 mb-6">
               <div className="flex items-center gap-2">
-                <div className="w-3 h-3 rounded-full bg-blue-500"></div>
-                <span>Entry Signal</span>
-              </div>
-              <div className="flex items-center gap-2">
                 <div className="w-3 h-3 rounded-full bg-green-500"></div>
-                <span>First Follow-up</span>
-              </div>
-              <div className="flex items-center gap-2">
-                <div className="w-3 h-3 rounded-full bg-orange-500"></div>
-                <span>Update</span>
-              </div>
-              <div className="flex items-center gap-2">
-                <div className="w-3 h-3 rounded-full bg-blue-500"></div>
-                <span>Latest</span>
+                <span>Alert</span>
               </div>
             </div>
 
@@ -1292,10 +1289,10 @@ export default function TradesTablePage() {
                               Pos.Size
                             </TableHead>
                             <TableHead className="text-gray-300 font-semibold min-w-[100px]">
-                              B. Entry Price
+                              Entry Price
                             </TableHead>
                             <TableHead className="text-gray-300 font-semibold min-w-[90px]">
-                              B. Exit Price
+                              Exit Price
                             </TableHead>
                             <TableHead className="text-gray-300 font-semibold min-w-[100px]">
                               P&L (USD)
@@ -2187,6 +2184,21 @@ export default function TradesTablePage() {
                     </Select>
 
                     <Select
+                      value={selectedTransactionExchange}
+                      onValueChange={setSelectedTransactionExchange}
+                    >
+                      <SelectTrigger className="w-[140px] bg-gray-900/50 border-gray-700 text-white">
+                        <Filter className="w-4 h-4 mr-2" />
+                        <SelectValue placeholder="Exchange" />
+                      </SelectTrigger>
+                      <SelectContent className="bg-gray-900 border-gray-700">
+                        <SelectItem value="all">All Exchanges</SelectItem>
+                        <SelectItem value="binance">Binance</SelectItem>
+                        <SelectItem value="kucoin">KuCoin</SelectItem>
+                      </SelectContent>
+                    </Select>
+
+                    <Select
                       value={transactionsDateRange}
                       onValueChange={setTransactionsDateRange}
                     >
@@ -2272,6 +2284,9 @@ export default function TradesTablePage() {
                             <TableHead className="text-gray-300 font-semibold min-w-[100px]">
                               Symbol
                             </TableHead>
+                            <TableHead className="text-gray-300 font-semibold min-w-[100px]">
+                              Exchange
+                            </TableHead>
                           </TableRow>
                         </TableHeader>
                         <TableBody>
@@ -2340,6 +2355,21 @@ export default function TradesTablePage() {
                                     {transaction.symbol}
                                   </Badge>
                                 </TableCell>
+                                <TableCell>
+                                  <Badge
+                                    variant="outline"
+                                    className={
+                                      transaction.exchange === "binance"
+                                        ? "border-yellow-500/50 text-yellow-300 bg-yellow-900/20"
+                                        : transaction.exchange === "kucoin"
+                                        ? "border-blue-500/50 text-blue-300 bg-blue-900/20"
+                                        : "border-gray-500/50 text-gray-300 bg-gray-900/20"
+                                    }
+                                  >
+                                    {transaction.exchange?.toUpperCase() ||
+                                      "N/A"}
+                                  </Badge>
+                                </TableCell>
                               </TableRow>
                             )
                           )}
@@ -2377,8 +2407,11 @@ export default function TradesTablePage() {
 
       {/* Binance Response Modal */}
       {showBinanceModal && selectedTrade && (
-        <BinanceResponseModal
-          trade={selectedTrade}
+        <ExchangeResponseModal
+          trade={{
+            ...selectedTrade,
+            exchange_response: selectedTrade.binance_response,
+          }}
           position={modalPosition}
           onClose={() => {
             setShowBinanceModal(false);
