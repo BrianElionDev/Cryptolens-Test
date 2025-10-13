@@ -23,7 +23,7 @@ interface TradingSettingsStore {
   updateExchangeSetting: (
     exchange: string,
     field: keyof ExchangeSettings,
-    value: number | boolean
+    value: number | boolean | string
   ) => void;
   updateSettings: (newSettings: TradingSettings) => void;
   resetSettings: () => void;
@@ -54,7 +54,7 @@ export const useTradingSettingsStore = create<TradingSettingsStore>()(
       updateExchangeSetting: (
         exchange: string,
         field: keyof ExchangeSettings,
-        value: number | boolean
+        value: string | number | boolean
       ) => {
         set((state) => ({
           settings: {

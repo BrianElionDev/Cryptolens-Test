@@ -75,7 +75,6 @@ export async function POST(request: NextRequest) {
           leverage: leverage || 1,
           position_size: positionSize || 100,
           updated_by: "admin", // You might want to get this from auth
-          trader_id_norm: traderId.toLowerCase(),
         })
         .select();
 
@@ -100,18 +99,53 @@ export async function POST(request: NextRequest) {
 
     // Update each exchange setting
     for (const [exchange, exchangeSettings] of Object.entries(settings)) {
-      const { error: updateError } = await supabase
-        .from("trader_exchange_config")
-        .update({
-          leverage: (exchangeSettings as Record<string, unknown>).leverage,
-          position_size: (exchangeSettings as Record<string, unknown>)
-            .positionSize,
-          updated_by: "admin", // You might want to get this from auth
-        })
-        .eq("exchange", exchange);
+      try {
+        const es = exchangeSettings as Record<string, unknown>;
+        const traderId =
+          typeof es.traderId === "string" ? (es.traderId as string) : undefined;
+        // trader_id_norm is a generated column in DB; don't write it
+        const leverage =
+          typeof es.leverage === "number"
+            ? (es.leverage as number)
+            : Number(es.leverage);
+        const positionSize =
+          typeof es.positionSize === "number"
+            ? (es.positionSize as number)
+            : Number(es.positionSize);
 
-      if (updateError) {
-        throw updateError;
+        const updatePayload: Record<string, unknown> = {
+          updated_by: "admin",
+        };
+
+        if (!Number.isNaN(leverage)) updatePayload.leverage = leverage;
+        if (!Number.isNaN(positionSize))
+          updatePayload.position_size = positionSize;
+        if (typeof traderId !== "undefined") updatePayload.trader_id = traderId;
+
+        // Do not send trader_id_norm; DB computes it
+
+        const { error: updateError } = await supabase
+          .from("trader_exchange_config")
+          .update(updatePayload)
+          .eq("exchange", exchange);
+
+        if (updateError) {
+          console.error(
+            "Supabase update error for exchange",
+            exchange,
+            updateError
+          );
+          return NextResponse.json(
+            { error: `Failed to update ${exchange}: ${updateError.message}` },
+            { status: 400 }
+          );
+        }
+      } catch (innerErr: unknown) {
+        console.error("Unexpected error updating exchange", exchange, innerErr);
+        return NextResponse.json(
+          { error: `Unexpected error updating ${exchange}` },
+          { status: 500 }
+        );
       }
     }
 
@@ -120,10 +154,22 @@ export async function POST(request: NextRequest) {
       message: "Trading settings saved successfully",
       settings,
     });
-  } catch {
-    return NextResponse.json(
-      { error: "Failed to save trading settings" },
-      { status: 500 }
-    );
+  } catch (e: unknown) {
+    console.error("POST /api/trading-settings failed", e);
+    const message = getErrorMessage(e);
+    return NextResponse.json({ error: message }, { status: 500 });
   }
+}
+
+function getErrorMessage(error: unknown): string {
+  if (typeof error === "string") return error;
+  if (
+    error &&
+    typeof error === "object" &&
+    "message" in error &&
+    typeof (error as { message: unknown }).message === "string"
+  ) {
+    return (error as { message: string }).message;
+  }
+  return "Failed to save trading settings";
 }
