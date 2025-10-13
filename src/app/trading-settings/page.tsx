@@ -177,7 +177,7 @@ export default function TradingSettingsPage() {
   const handleUpdateSetting = (
     exchange: string,
     field: keyof ExchangeSettings,
-    value: number | boolean
+    value: string | number | boolean
   ) => {
     updateExchangeSetting(exchange, field, value);
     setHasChanges(true);
@@ -224,13 +224,33 @@ export default function TradingSettingsPage() {
 
         <CardContent className="p-3 space-y-4">
           {/* Trader ID */}
-          <div className="flex items-center gap-2">
-            <Badge
-              variant="outline"
-              className="border-blue-500/30 text-blue-300 bg-blue-500/10 backdrop-blur-sm"
+          <div className="space-y-2">
+            <Label
+              htmlFor={`${exchange}-traderId`}
+              className="text-gray-300 text-sm font-medium"
             >
-              {exchangeSettings?.traderId || "N/A"}
-            </Badge>
+              Trader ID
+            </Label>
+            <Input
+              id={`${exchange}-traderId`}
+              type="text"
+              value={exchangeSettings?.traderId || ""}
+              onChange={(e) => {
+                const next = e.target.value;
+                handleUpdateSetting(
+                  exchange,
+                  "traderId",
+                  next as unknown as string
+                );
+                handleUpdateSetting(
+                  exchange,
+                  "traderIdNorm",
+                  next ? next.toLowerCase() : ""
+                );
+              }}
+              className="bg-gray-800/50 border-gray-600/40 text-white hover:border-gray-500/60 focus:border-blue-500/60 transition-all duration-200 backdrop-blur-sm"
+              placeholder="e.g., johnny"
+            />
           </div>
 
           {/* Position Size */}
