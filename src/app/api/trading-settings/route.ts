@@ -156,10 +156,20 @@ export async function POST(request: NextRequest) {
     });
   } catch (e: unknown) {
     console.error("POST /api/trading-settings failed", e);
-    const message =
-      typeof e === "object" && e && "message" in e
-        ? (e as any).message
-        : "Failed to save trading settings";
+    const message = getErrorMessage(e);
     return NextResponse.json({ error: message }, { status: 500 });
   }
+}
+
+function getErrorMessage(error: unknown): string {
+  if (typeof error === "string") return error;
+  if (
+    error &&
+    typeof error === "object" &&
+    "message" in error &&
+    typeof (error as { message: unknown }).message === "string"
+  ) {
+    return (error as { message: string }).message;
+  }
+  return "Failed to save trading settings";
 }
