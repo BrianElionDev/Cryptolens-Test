@@ -70,6 +70,7 @@ interface TradesRow {
   binance_entry_price: number | null;
   binance_exit_price: number | null;
   binance_response: string | null;
+  exchange_response: string | null;
   pnl_usd: number | null;
   parsed_signal: object;
   exchange: string | null;
@@ -2410,7 +2411,7 @@ export default function TradesTablePage() {
         <ExchangeResponseModal
           trade={{
             ...selectedTrade,
-            exchange_response: selectedTrade.binance_response,
+            exchange_response: selectedTrade.exchange_response,
           }}
           position={modalPosition}
           onClose={() => {
