@@ -39,6 +39,7 @@ import { Alert, Trade } from "@/types/wealthgroup";
 import { ActiveFutures } from "@/types/active_futures";
 import { formatInTimeZone } from "date-fns-tz";
 import { ExchangeResponseModal } from "./components/ExchangeResponseModal";
+import { TradeLogModal } from "./components/TradeLogModal";
 import { DynamicPlatformCards } from "./components/DynamicPlatformCards";
 
 interface Transaction {
@@ -125,8 +126,8 @@ interface TradeEntry {
   content: string;
   state: string;
   coin: string;
-  action_1: string;
-  action_2: string | null;
+  action: string;
+  exchange_response: string | null;
   trade?: Trade;
   alert?: Alert;
   originalTradeId?: string;
@@ -146,6 +147,63 @@ async function fetchActiveFutures() {
 // Removed old API functions - now using dynamic platform cards
 
 export default function TradesTablePage() {
+  // Helper function to extract coin symbol from content
+  const extractCoinFromContent = (content: string | null): string => {
+    if (!content) return "";
+
+    // Common crypto symbols pattern
+    const cryptoPattern = /\b([A-Z]{2,10})\b/g;
+    const matches = content.match(cryptoPattern);
+
+    if (matches) {
+      // Filter out common words that might match the pattern
+      const commonWords = [
+        "THE",
+        "AND",
+        "FOR",
+        "WITH",
+        "FROM",
+        "THIS",
+        "THAT",
+        "WILL",
+        "CAN",
+        "BUT",
+        "NOT",
+        "YOU",
+        "ALL",
+        "ARE",
+        "WAS",
+        "WERE",
+        "BEEN",
+        "HAVE",
+        "HAS",
+        "HAD",
+        "DOES",
+        "DID",
+        "WILL",
+        "WOULD",
+        "COULD",
+        "SHOULD",
+        "MAY",
+        "MIGHT",
+        "MUST",
+        "SHALL",
+      ];
+
+      for (const match of matches) {
+        if (
+          !commonWords.includes(match) &&
+          match.length >= 2 &&
+          match.length <= 10
+        ) {
+          return match;
+        }
+      }
+    }
+
+    return "";
+  };
+
   // Trading Log filters
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedState, setSelectedState] = useState("all");
@@ -207,6 +265,9 @@ export default function TradesTablePage() {
   // Modal state
   const [selectedTrade, setSelectedTrade] = useState<TradesRow | null>(null);
   const [showBinanceModal, setShowBinanceModal] = useState(false);
+  const [showExchangeResponseModal, setShowExchangeResponseModal] =
+    useState(false);
+  const [selectedEntry, setSelectedEntry] = useState<TradeEntry | null>(null);
   const [modalPosition, setModalPosition] = useState({ x: 0, y: 0 });
   const [highlightedTradeId, setHighlightedTradeId] = useState<number | null>(
     null
@@ -306,32 +367,58 @@ export default function TradesTablePage() {
     const trades = tradesData || [];
     const alerts = alertsData || [];
 
-    const tradeEntries: TradeEntry[] = trades.map((trade: Trade) => ({
-      id: trade.id.toString(),
-      type: "trade" as const,
-      timestamp: trade.timestamp,
-      content: trade.content,
-      state: "entry",
-      coin: trade.parsed_signal?.coin_symbol || "",
-      action_1: trade.parsed_signal?.entry_prices?.join(", ") || "",
-      action_2: trade.parsed_signal?.stop_loss?.toString() || null,
-      trade: trade,
-      originalTradeId: trade.id,
-    }));
+    const tradeEntries: TradeEntry[] = trades.map((trade: Trade) => {
+      // For trades, action should be entry prices or signal type
+      const tradeAction =
+        trade.parsed_signal?.entry_prices?.join(", ") ||
+        trade.signal_type ||
+        "Trade Entry";
 
-    const alertEntries: TradeEntry[] = alerts.map((alert: Alert) => ({
-      id: alert.discord_id,
-      type: "alert" as const,
-      timestamp: alert.timestamp,
-      content: alert.content,
-      state: "alert",
-      coin: alert.parsed_alert?.coin_symbol || "",
-      action_1: alert.parsed_alert?.action_determined?.action_description || "",
-      action_2:
-        alert.parsed_alert?.action_determined?.stop_loss?.toString() || null,
-      alert: alert,
-      originalTradeId: alert.trade, // trade field contains the discord_id of the related trade
-    }));
+      return {
+        id: trade.id.toString(),
+        type: "trade" as const,
+        timestamp: trade.timestamp,
+        content: trade.content,
+        state: "entry",
+        coin: trade.coin_symbol || trade.parsed_signal?.coin_symbol || "",
+        action: tradeAction,
+        exchange_response: trade.exchange_response,
+        trade: trade,
+        originalTradeId: trade.id,
+      };
+    });
+
+    const alertEntries: TradeEntry[] = alerts.map((alert: Alert) => {
+      // Use content as action for alerts
+      const actionDescription = alert.content || "";
+
+      // Fallback for coin symbol if parsed_alert is not available
+      const coinFromContent = extractCoinFromContent(alert.content);
+      const coinFromOriginal = extractCoinFromContent(
+        alert.parsed_alert?.original_content ?? null
+      );
+
+      const coinSymbol =
+        alert.parsed_alert?.coin_symbol ||
+        (alert as Alert & { coin_symbol?: string }).coin_symbol ||
+        coinFromContent ||
+        coinFromOriginal;
+
+      const entry = {
+        id: alert.discord_id,
+        type: "alert" as const,
+        timestamp: alert.timestamp,
+        content: alert.content,
+        state: "alert",
+        coin: coinSymbol,
+        action: actionDescription,
+        exchange_response: alert.exchange_response,
+        alert: alert,
+        originalTradeId: alert.trade, // trade field contains the discord_id of the related trade
+      };
+
+      return entry;
+    });
 
     return [...tradeEntries, ...alertEntries];
   }, [tradesData, alertsData]);
@@ -930,10 +1017,10 @@ export default function TradesTablePage() {
                           Asset
                         </TableHead>
                         <TableHead className="text-gray-300 font-semibold min-w-[200px]">
-                          Action 1
+                          Action
                         </TableHead>
                         <TableHead className="text-gray-300 font-semibold min-w-[150px]">
-                          Action 2
+                          Exchange Response
                         </TableHead>
                       </TableRow>
                     </TableHeader>
@@ -1023,12 +1110,27 @@ export default function TradesTablePage() {
                               </TableCell>
                               <TableCell className="max-w-[250px]">
                                 <div className="text-yellow-300 text-sm truncate">
-                                  {entry.action_1 || "-"}
+                                  {entry.action || "-"}
                                 </div>
                               </TableCell>
                               <TableCell className="max-w-[250px]">
-                                <div className="text-red-300 text-sm truncate">
-                                  {entry.action_2 || "-"}
+                                <div
+                                  className={`text-sm truncate cursor-pointer hover:underline ${
+                                    entry.exchange_response
+                                      ? "text-blue-300 hover:text-blue-200"
+                                      : "text-gray-500"
+                                  }`}
+                                  onClick={(e) => {
+                                    if (entry.exchange_response) {
+                                      e.stopPropagation();
+                                      setSelectedEntry(entry);
+                                      setShowExchangeResponseModal(true);
+                                    }
+                                  }}
+                                >
+                                  {entry.exchange_response
+                                    ? "View Response"
+                                    : "-"}
                                 </div>
                               </TableCell>
                             </TableRow>
@@ -1705,18 +1807,123 @@ export default function TradesTablePage() {
                                                         )}
                                                       </Badge>
                                                     </div>
-                                                    <div className="flex flex-col gap-1 min-w-[150px]">
-                                                      <div className="text-blue-300 text-xs font-medium">
-                                                        {alert.parsed_alert
-                                                          ?.action_determined
-                                                          ?.action_description ||
-                                                          "N/A"}
-                                                      </div>
-                                                      <div className="text-gray-400 text-xs">
-                                                        {alert.parsed_alert
-                                                          ?.action_determined
-                                                          ?.reason || "_"}
-                                                      </div>
+                                                    <div className="flex items-center justify-center min-w-[150px]">
+                                                      <button
+                                                        onClick={(e) => {
+                                                          e.stopPropagation();
+                                                          const rect =
+                                                            e.currentTarget.getBoundingClientRect();
+
+                                                          // Calculate optimal position to avoid overflow
+                                                          const modalWidth = 400;
+                                                          const modalHeight = 600;
+                                                          const viewportWidth =
+                                                            window.innerWidth;
+                                                          const viewportHeight =
+                                                            window.innerHeight;
+
+                                                          let x = rect.left;
+                                                          let y = rect.top;
+
+                                                          // Adjust horizontal position if modal would overflow right
+                                                          if (
+                                                            x + modalWidth >
+                                                            viewportWidth
+                                                          ) {
+                                                            x =
+                                                              viewportWidth -
+                                                              modalWidth -
+                                                              20;
+                                                          }
+
+                                                          // Adjust vertical position if modal would overflow bottom
+                                                          if (
+                                                            y + modalHeight >
+                                                            viewportHeight
+                                                          ) {
+                                                            y =
+                                                              viewportHeight -
+                                                              modalHeight -
+                                                              20;
+                                                          }
+
+                                                          // Ensure modal doesn't go above viewport
+                                                          if (y < 20) {
+                                                            y = 20;
+                                                          }
+
+                                                          setModalPosition({
+                                                            x,
+                                                            y,
+                                                          });
+
+                                                          // Create a TradeEntry-like object for the alert
+                                                          const alertEntry: TradeEntry =
+                                                            {
+                                                              id: alert.discord_id,
+                                                              type: "alert" as const,
+                                                              timestamp:
+                                                                alert.timestamp,
+                                                              content:
+                                                                alert.content,
+                                                              state: "alert",
+                                                              coin:
+                                                                alert
+                                                                  .parsed_alert
+                                                                  ?.coin_symbol ||
+                                                                (
+                                                                  alert as Alert & {
+                                                                    coin_symbol?: string;
+                                                                  }
+                                                                ).coin_symbol ||
+                                                                extractCoinFromContent(
+                                                                  alert.content
+                                                                ) ||
+                                                                extractCoinFromContent(
+                                                                  alert
+                                                                    .parsed_alert
+                                                                    ?.original_content ??
+                                                                    null
+                                                                ) ||
+                                                                "",
+                                                              action:
+                                                                alert.content,
+                                                              exchange_response:
+                                                                alert.exchange_response ||
+                                                                null,
+                                                              alert: alert,
+                                                              originalTradeId:
+                                                                alert.trade,
+                                                            };
+
+                                                          setSelectedEntry(
+                                                            alertEntry
+                                                          );
+                                                          setShowExchangeResponseModal(
+                                                            true
+                                                          );
+                                                        }}
+                                                        className={`flex items-center gap-2 px-3 py-2 rounded-lg transition-all duration-200 ${
+                                                          alert.exchange_response
+                                                            ? "hover:bg-blue-500/20 text-blue-300 border border-blue-500/30 hover:border-blue-500/50"
+                                                            : "text-gray-500 cursor-not-allowed"
+                                                        }`}
+                                                        disabled={
+                                                          !alert.exchange_response
+                                                        }
+                                                        title={
+                                                          alert.exchange_response
+                                                            ? "View Exchange Response"
+                                                            : "No exchange response available"
+                                                        }
+                                                      >
+                                                        <ExternalLink className="w-4 h-4" />
+                                                        <span className="text-xs font-medium">
+                                                          {alert.exchange_response
+                                                            ? "View Response"
+                                                            : "No Response"}
+                                                        </span>
+                                                      </button>
                                                     </div>
                                                   </div>
                                                 </div>
@@ -2417,6 +2624,18 @@ export default function TradesTablePage() {
           onClose={() => {
             setShowBinanceModal(false);
             setSelectedTrade(null);
+          }}
+        />
+      )}
+
+      {/* Trade Entry Exchange Response Modal */}
+      {showExchangeResponseModal && selectedEntry && (
+        <TradeLogModal
+          entry={selectedEntry}
+          position={modalPosition}
+          onClose={() => {
+            setShowExchangeResponseModal(false);
+            setSelectedEntry(null);
           }}
         />
       )}
