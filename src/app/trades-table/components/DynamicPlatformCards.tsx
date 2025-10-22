@@ -14,9 +14,6 @@ async function fetchPnLData(platform: string, period: string, range?: string) {
     ...(range && { range }),
   });
 
-  console.log(
-    `Fetching P&L data for platform: ${platform}, period: ${period}, range: ${range}`
-  );
   const response = await fetch(`/api/pnl?${params.toString()}`);
   if (!response.ok) {
     const errorText = await response.text();
@@ -26,24 +23,35 @@ async function fetchPnLData(platform: string, period: string, range?: string) {
     );
   }
   const data = await response.json();
-  console.log(`P&L API response for ${platform}:`, data);
   return data;
 }
 
 export function DynamicPlatformCards() {
   const { data: platforms, isLoading, error } = useAllPlatforms();
   const [pnlRanges, setPnlRanges] = useState<Record<string, string>>({});
+  const [refreshingPlatforms, setRefreshingPlatforms] = useState<Set<string>>(
+    new Set()
+  );
 
   const handlePnlRangeChange = (platformKey: string, value: string) => {
     setPnlRanges((prev) => ({
       ...prev,
       [platformKey]: value,
     }));
-    console.log(`${platformKey} P&L range changed:`, value);
   };
 
   const handlePnlRefresh = (platformKey: string) => {
-    console.log(`${platformKey} P&L refresh`);
+    // Mark this platform as refreshing
+    setRefreshingPlatforms((prev) => new Set(prev).add(platformKey));
+
+    // Clear the refreshing state after a short delay
+    setTimeout(() => {
+      setRefreshingPlatforms((prev) => {
+        const newSet = new Set(prev);
+        newSet.delete(platformKey);
+        return newSet;
+      });
+    }, 1000);
   };
 
   // Individual platform card component with P&L data
@@ -83,6 +91,8 @@ export function DynamicPlatformCards() {
       retry: 3,
     });
 
+    const isRefreshing = refreshingPlatforms.has(platformKey);
+
     return (
       <PlatformCard
         key={platformKey}
@@ -90,7 +100,7 @@ export function DynamicPlatformCards() {
         accountType={platformData.accountType}
         pnlData={pnlData}
         pnlRange={currentPnlRange}
-        pnlLoading={pnlLoading}
+        pnlLoading={pnlLoading || isRefreshing}
         onPnlRangeChange={(value) => handlePnlRangeChange(platformKey, value)}
         onPnlRefresh={() => {
           handlePnlRefresh(platformKey);
