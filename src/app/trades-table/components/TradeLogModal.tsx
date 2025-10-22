@@ -236,7 +236,7 @@ export function TradeLogModal({
                               isProfitable ? "text-green-300" : "text-red-300"
                             }`}
                           >
-                            ${entry.trade.pnl_usd.toFixed(2)}
+                            ${entry.trade?.pnl_usd?.toFixed(2) || "0.00"}
                           </span>
                         </>
                       ) : (
