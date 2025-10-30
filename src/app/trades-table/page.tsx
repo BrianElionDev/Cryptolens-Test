@@ -1579,15 +1579,15 @@ export default function TradesTablePage() {
                                   </TableCell>
 
                                   <TableCell className="text-blue-200 font-medium">
-                                    {trade.binance_entry_price
-                                      ? `$${trade.binance_entry_price.toFixed(
+                                    {trade.entry_price
+                                      ? `$${trade.entry_price.toFixed(
                                           2
                                         )}`
                                       : "-"}
                                   </TableCell>
                                   <TableCell className="text-purple-200 font-medium">
-                                    {trade.binance_exit_price
-                                      ? `$${trade.binance_exit_price.toFixed(
+                                    {trade.exit_price
+                                      ? `$${trade.exit_price.toFixed(
                                           2
                                         )}`
                                       : "-"}
