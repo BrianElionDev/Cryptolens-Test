@@ -41,6 +41,7 @@ import { formatInTimeZone } from "date-fns-tz";
 import { ExchangeResponseModal } from "./components/ExchangeResponseModal";
 import { TradeLogModal } from "./components/TradeLogModal";
 import { DynamicPlatformCards } from "./components/DynamicPlatformCards";
+import { RefreshAllButton } from "./components/RefreshAllButton";
 
 interface Transaction {
   time: string;
@@ -819,6 +820,12 @@ export default function TradesTablePage() {
       </div>
 
       <div className=" mx-auto px-4  py-8 relative z-10 w-full">
+        {/* Header with Refresh Button */}
+        <div className="flex items-center justify-between mb-6">
+          <h2 className="text-2xl font-bold text-white">Portfolio Overview</h2>
+          <RefreshAllButton />
+        </div>
+
         {/* Dynamic Platform Cards */}
         <div className="mb-6">
           <DynamicPlatformCards />
