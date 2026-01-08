@@ -22,7 +22,7 @@ export function useRefreshAll() {
 
   return useMutation<RefreshAllResponse, Error, void>({
     mutationFn: async () => {
-      const response = await fetch("/api/v1/account/refresh-all", {
+      const response = await fetch("/api/account/refresh-all", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
