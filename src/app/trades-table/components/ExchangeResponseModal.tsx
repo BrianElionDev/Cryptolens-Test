@@ -5,7 +5,7 @@ import { X, ExternalLink, TrendingUp, TrendingDown } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { formatInTimeZone } from "date-fns-tz";
 
-interface BinanceResponseModalProps {
+interface ExchangeResponseModalProps {
   trade: {
     id: number;
     discord_id: string;
@@ -17,17 +17,17 @@ interface BinanceResponseModalProps {
     position_size: number;
     exit_price: number | null;
     pnl_usd: number | null;
-    binance_response: string | null;
+    exchange_response: string | null;
   };
   onClose: () => void;
   position?: { x: number; y: number };
 }
 
-export function BinanceResponseModal({
+export function ExchangeResponseModal({
   trade,
   onClose,
   position,
-}: BinanceResponseModalProps) {
+}: ExchangeResponseModalProps) {
   const isProfitable = trade.pnl_usd && trade.pnl_usd > 0;
 
   return (
@@ -55,7 +55,7 @@ export function BinanceResponseModal({
             transform: position ? "none" : "translate(-50%, -50%)",
           }}
           onClick={(e) => e.stopPropagation()}
-          data-modal="binance-response"
+          data-modal="exchange-response"
         >
           <div className="bg-gray-900/95 backdrop-blur-xl rounded-2xl border border-gray-700/50 shadow-2xl overflow-hidden h-[600px] flex flex-col">
             {/* Header */}
@@ -171,22 +171,22 @@ export function BinanceResponseModal({
                 </p>
               </div>
 
-              {/* Binance Response - full width, takes remaining space */}
-              <div className="bg-gray-800/30 rounded-xl p-3 border border-gray-700/30 flex-1 flex flex-col overflow-hidden">
+              {/* Exchange Response - full width, takes remaining space */}
+              <div className="bg-gray-800/30 rounded-xl p-3 border border-gray-700/30 flex-1 flex flex-col overflow-auto">
                 <p className="text-xs text-gray-400 mb-2 flex items-center gap-1 flex-shrink-0">
                   <ExternalLink className="w-3 h-3" />
-                  Binance Response
+                  Exchange Response
                 </p>
-                {trade.binance_response ? (
-                  <div className="bg-black/40 rounded-lg p-2 border border-gray-600/30 flex-1 overflow-hidden">
+                {trade.exchange_response ? (
+                  <div className="bg-black/40 rounded-lg p-2 border border-gray-600/30 flex-1 overflow-auto">
                     <pre
-                      className="text-xs text-gray-300 whitespace-pre-wrap break-words font-mono h-full overflow-y-auto scrollbar-thin scrollbar-thumb-gray-700 scrollbar-track-gray-900 pr-2"
+                      className="text-xs text-gray-300 whitespace-pre-wrap break-words font-mono h-full overflow-auto scrollbar-thin scrollbar-thumb-gray-700 scrollbar-track-gray-900 pr-2"
                       style={{
                         scrollbarColor: "#374151 #111827",
                         scrollbarWidth: "thin",
                       }}
                     >
-                      {trade.binance_response}
+                      {trade.exchange_response}
                     </pre>
                   </div>
                 ) : (

@@ -18,6 +18,7 @@ export default function Navbar() {
     { href: "/youtube-analysis", label: "YouTube Analysis" },
     { href: "/autofetch", label: "Autofetch" },
     { href: "/trades-table", label: "Trades Table" },
+    { href: "/trading-settings", label: "Trading Settings" },
   ];
 
   return (
