@@ -7,7 +7,7 @@
     "build": "next build",
     "start": "next start",
     "lint": "next lint",
-    "preinstall": "node preinstall.js"
+    "preinstall": "echo 'No preinstall'"
   },
   "dependencies": {
     "@radix-ui/react-checkbox": "^1.3.3",
