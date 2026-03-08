@@ -92,19 +92,21 @@ export default function TradesTablePage() {
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedState, setSelectedState] = useState("all");
   const [selectedCoin, setSelectedCoin] = useState("all");
-  const [selectedTraderLog, setSelectedTraderLog] = useState("@Johnny");
+  const [selectedTraderLog, setSelectedTraderLog] = useState(
+    "Sprout Capital Group",
+  );
   const [sortBy, setSortBy] = useState<"newest" | "oldest">("newest");
   const [resultLimit, setResultLimit] = useState<number>(9999);
   const [dateRange, setDateRange] = useState("all");
 
   // Trades tab filters
   const [tradesSearchTerm, setTradesSearchTerm] = useState("");
-  const [selectedTrader, setSelectedTrader] = useState("@Johnny");
+  const [selectedTrader, setSelectedTrader] = useState("Sprout Capital Group");
   const [selectedSignalType, setSelectedSignalType] = useState("all");
   const [selectedStatus, setSelectedStatus] = useState("all");
   const [selectedCoinTrades, setSelectedCoinTrades] = useState("all");
   const [tradesSortBy, setTradesSortBy] = useState<"newest" | "oldest">(
-    "newest"
+    "newest",
   );
   const [tradesResultLimit, setTradesResultLimit] = useState<number>(9999);
   const [tradesDateRange, setTradesDateRange] = useState("all");
@@ -114,7 +116,7 @@ export default function TradesTablePage() {
   const [showBinanceModal, setShowBinanceModal] = useState(false);
   const [modalPosition, setModalPosition] = useState({ x: 0, y: 0 });
   const [highlightedTradeId, setHighlightedTradeId] = useState<number | null>(
-    null
+    null,
   );
 
   const { data, isLoading, error } = useQuery({
@@ -193,7 +195,7 @@ export default function TradesTablePage() {
     const uniqueCoins = new Set(
       allEntries
         .filter((entry) => entry.coin)
-        .map((entry) => entry.coin.toUpperCase())
+        .map((entry) => entry.coin.toUpperCase()),
     );
     return Array.from(uniqueCoins).sort() as string[];
   }, [allEntries]);
@@ -203,7 +205,7 @@ export default function TradesTablePage() {
     const uniqueTraders = new Set(
       tradesData
         .filter((trade: Trade) => trade.trader)
-        .map((trade: Trade) => trade.trader)
+        .map((trade: Trade) => trade.trader),
     );
     return Array.from(uniqueTraders).sort() as string[];
   }, [tradesData]);
@@ -212,7 +214,7 @@ export default function TradesTablePage() {
     const uniqueSignalTypes = new Set(
       tradesData
         .filter((trade: Trade) => trade.parsed_signal?.position_type)
-        .map((trade: Trade) => trade.parsed_signal!.position_type)
+        .map((trade: Trade) => trade.parsed_signal!.position_type),
     );
     return Array.from(uniqueSignalTypes).sort() as string[];
   }, [tradesData]);
@@ -222,7 +224,7 @@ export default function TradesTablePage() {
     const uniqueStatuses = new Set(
       tradesData
         .filter((trade: Trade) => trade.status)
-        .map((trade: Trade) => trade.status)
+        .map((trade: Trade) => trade.status),
     );
     return Array.from(uniqueStatuses).sort() as string[];
   }, [tradesData]);
@@ -246,17 +248,17 @@ export default function TradesTablePage() {
         };
       case "7days":
         const sevenDaysAgo = new Date(
-          today.getTime() - 7 * 24 * 60 * 60 * 1000
+          today.getTime() - 7 * 24 * 60 * 60 * 1000,
         );
         return { from: sevenDaysAgo, to: now };
       case "30days":
         const thirtyDaysAgo = new Date(
-          today.getTime() - 30 * 24 * 60 * 60 * 1000
+          today.getTime() - 30 * 24 * 60 * 60 * 1000,
         );
         return { from: thirtyDaysAgo, to: now };
       case "7daysago":
         const sevenDaysAgoStart = new Date(
-          today.getTime() - 7 * 24 * 60 * 60 * 1000
+          today.getTime() - 7 * 24 * 60 * 60 * 1000,
         );
         return {
           from: sevenDaysAgoStart,
@@ -264,7 +266,7 @@ export default function TradesTablePage() {
         };
       case "30daysago":
         const thirtyDaysAgoStart = new Date(
-          today.getTime() - 30 * 24 * 60 * 60 * 1000
+          today.getTime() - 30 * 24 * 60 * 60 * 1000,
         );
         return {
           from: thirtyDaysAgoStart,
@@ -692,14 +694,14 @@ export default function TradesTablePage() {
                                     {formatInTimeZone(
                                       new Date(entry.timestamp),
                                       "Asia/Dubai",
-                                      "MMM dd, yyyy"
+                                      "MMM dd, yyyy",
                                     )}
                                   </span>
                                   <span className="text-xs text-gray-500">
                                     {formatInTimeZone(
                                       new Date(entry.timestamp),
                                       "Asia/Dubai",
-                                      "HH:mm"
+                                      "HH:mm",
                                     )}
                                   </span>
                                 </div>
@@ -742,7 +744,7 @@ export default function TradesTablePage() {
                                     ? "Entry"
                                     : getStateFromSignal(
                                         entry.trade!,
-                                        entry.alert
+                                        entry.alert,
                                       )}
                                 </Badge>
                               </TableCell>
@@ -763,7 +765,7 @@ export default function TradesTablePage() {
                               </TableCell>
                             </TableRow>
                           );
-                        }
+                        },
                       )}
                       {filteredEntries.length === 0 && (
                         <TableRow key="empty-entries">
@@ -1024,8 +1026,8 @@ export default function TradesTablePage() {
                                     showBinanceModal
                                       ? "bg-blue-500/10 border-blue-500/30 shadow-lg shadow-blue-500/20"
                                       : highlightedTradeId === trade.id
-                                      ? "bg-blue-500/20 border-blue-500/20"
-                                      : ""
+                                        ? "bg-blue-500/20 border-blue-500/20"
+                                        : ""
                                   }`}
                                 >
                                   <TableCell>
@@ -1039,7 +1041,7 @@ export default function TradesTablePage() {
                                           (alert: Alert) =>
                                             alert.trade === trade.discord_id ||
                                             alert.parsed_alert
-                                              ?.original_trade_id === trade.id
+                                              ?.original_trade_id === trade.id,
                                         )
                                       }
                                     >
@@ -1047,7 +1049,7 @@ export default function TradesTablePage() {
                                         (alert: Alert) =>
                                           alert.trade === trade.discord_id ||
                                           alert.parsed_alert
-                                            ?.original_trade_id === trade.id
+                                            ?.original_trade_id === trade.id,
                                       ) ? (
                                         expandedRows.has(trade.id) ? (
                                           <ChevronDown className="w-4 h-4 text-gray-400" />
@@ -1065,14 +1067,14 @@ export default function TradesTablePage() {
                                         {formatInTimeZone(
                                           new Date(trade.timestamp),
                                           "Asia/Dubai",
-                                          "MMM dd, yyyy"
+                                          "MMM dd, yyyy",
                                         )}
                                       </span>
                                       <span className="text-xs text-gray-500">
                                         {formatInTimeZone(
                                           new Date(trade.timestamp),
                                           "Asia/Dubai",
-                                          "HH:mm"
+                                          "HH:mm",
                                         )}
                                       </span>
                                     </div>
@@ -1108,8 +1110,8 @@ export default function TradesTablePage() {
                                         trade.signal_type === "LONG"
                                           ? "border-purple-500/50 text-purple-300"
                                           : trade.signal_type === "SHORT"
-                                          ? "border-cyan-500/50 text-cyan-300"
-                                          : "border-gray-500/50 text-gray-300"
+                                            ? "border-cyan-500/50 text-cyan-300"
+                                            : "border-gray-500/50 text-gray-300"
                                       }
                                     >
                                       {trade.signal_type}
@@ -1210,7 +1212,7 @@ export default function TradesTablePage() {
                                           e.currentTarget.getBoundingClientRect();
                                         const tableContainer =
                                           e.currentTarget.closest(
-                                            ".overflow-x-auto"
+                                            ".overflow-x-auto",
                                           );
                                         const tableRect =
                                           tableContainer?.getBoundingClientRect();
@@ -1269,7 +1271,7 @@ export default function TradesTablePage() {
                                         setTimeout(() => {
                                           const modalElement =
                                             document.querySelector(
-                                              '[data-modal="binance-response"]'
+                                              '[data-modal="binance-response"]',
                                             );
                                           if (modalElement) {
                                             modalElement.scrollIntoView({
@@ -1285,8 +1287,8 @@ export default function TradesTablePage() {
                                         showBinanceModal
                                           ? "bg-blue-500/20 text-blue-200 border border-blue-500/50 shadow-lg shadow-blue-500/20"
                                           : highlightedTradeId === trade.id
-                                          ? "bg-blue-500/30 text-blue-300 border border-blue-500/30"
-                                          : "hover:bg-gray-800/50 text-gray-400 hover:text-blue-300 border border-transparent hover:border-blue-500/30"
+                                            ? "bg-blue-500/30 text-blue-300 border border-blue-500/30"
+                                            : "hover:bg-gray-800/50 text-gray-400 hover:text-blue-300 border border-transparent hover:border-blue-500/30"
                                       }`}
                                       title="View Binance Response"
                                     >
@@ -1313,7 +1315,7 @@ export default function TradesTablePage() {
                                                     trade.discord_id ||
                                                   alert.parsed_alert
                                                     ?.original_trade_id ===
-                                                    trade.id
+                                                    trade.id,
                                               ).length
                                             }
                                             )
@@ -1327,19 +1329,19 @@ export default function TradesTablePage() {
                                                   trade.discord_id ||
                                                 alert.parsed_alert
                                                   ?.original_trade_id ===
-                                                  trade.id
+                                                  trade.id,
                                             )
                                             .sort(
                                               (a: Alert, b: Alert) =>
                                                 new Date(
-                                                  a.timestamp
+                                                  a.timestamp,
                                                 ).getTime() -
-                                                new Date(b.timestamp).getTime()
+                                                new Date(b.timestamp).getTime(),
                                             )
                                             .map(
                                               (
                                                 alert: Alert,
-                                                alertIndex: number
+                                                alertIndex: number,
                                               ) => (
                                                 <div
                                                   key={`alert-${alert.discord_id}-${alertIndex}`}
@@ -1351,19 +1353,19 @@ export default function TradesTablePage() {
                                                         <span className="font-medium">
                                                           {formatInTimeZone(
                                                             new Date(
-                                                              alert.timestamp
+                                                              alert.timestamp,
                                                             ),
                                                             "Asia/Dubai",
-                                                            "MMM dd, yyyy"
+                                                            "MMM dd, yyyy",
                                                           )}
                                                         </span>
                                                         <span className="text-xs text-gray-500">
                                                           {formatInTimeZone(
                                                             new Date(
-                                                              alert.timestamp
+                                                              alert.timestamp,
                                                             ),
                                                             "Asia/Dubai",
-                                                            "HH:mm"
+                                                            "HH:mm",
                                                           )}
                                                         </span>
                                                       </div>
@@ -1387,7 +1389,7 @@ export default function TradesTablePage() {
                                                       >
                                                         {getStateFromSignal(
                                                           trade as Trade,
-                                                          alert
+                                                          alert,
                                                         )}
                                                       </Badge>
                                                     </div>
@@ -1406,14 +1408,15 @@ export default function TradesTablePage() {
                                                     </div>
                                                   </div>
                                                 </div>
-                                              )
+                                              ),
                                             )}
                                           {alertsData.filter(
                                             (alert: Alert) =>
                                               alert.trade ===
                                                 trade.discord_id ||
                                               alert.parsed_alert
-                                                ?.original_trade_id === trade.id
+                                                ?.original_trade_id ===
+                                                trade.id,
                                           ).length === 0 && (
                                             <div className="text-center py-2 text-gray-500 text-sm">
                                               No alerts found for this trade
@@ -1425,7 +1428,7 @@ export default function TradesTablePage() {
                                   </TableRow>
                                 )}
                               </React.Fragment>
-                            )
+                            ),
                           )}
 
                           {filteredTrades.length === 0 && (
